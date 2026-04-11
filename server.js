@@ -11,7 +11,6 @@ app.use(express.static("public"));
 let usuarios = {};
 
 io.on("connection", (socket) => {
-  console.log("Conectado");
 
   socket.on("nuevo_usuario", (username) => {
     usuarios[socket.id] = username;
@@ -29,7 +28,6 @@ io.on("connection", (socket) => {
   });
 });
 
-// 🔥 IMPORTANTE para Render
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
