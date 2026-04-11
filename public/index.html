@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chat Morado</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>💜 Chat Global</h1>
+
+<div id="login">
+  <input id="username" placeholder="username (sin espacios)">
+  <button onclick="entrar()">Entrar</button>
+</div>
+
+<div id="chat" style="display:none;">
+  <div id="mensajes"></div>
+
+  <div id="barra">
+    <input id="msg" placeholder="Escribe mensaje...">
+    <button onclick="enviar()">Enviar</button>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
