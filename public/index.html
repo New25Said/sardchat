@@ -1,29 +1,14 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Chat Morado</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-
-<h1>💜 Chat Global</h1>
+<h1>💜 Chat</h1>
 
 <div id="login">
-  <input id="username" placeholder="username (sin espacios)">
-  <button onclick="entrar()">Entrar</button>
+  <input id="user" placeholder="username">
+  <input id="pass" type="password" placeholder="password">
+  <button onclick="login()">Login</button>
+  <button onclick="registro()">Registrarse</button>
 </div>
 
 <div id="chat" style="display:none;">
   <div id="mensajes"></div>
-
-  <div id="barra">
-    <input id="msg" placeholder="Escribe mensaje...">
-    <button onclick="enviar()">Enviar</button>
-  </div>
+  <input id="msg">
+  <button onclick="enviar()">Enviar</button>
 </div>
-
-<script src="/socket.io/socket.io.js"></script>
-<script src="app.js"></script>
-
-</body>
-</html>
