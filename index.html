@@ -9,51 +9,36 @@
 <body>
     <audio id="whistle" src="whatsapp-assobio-oficial-2014-whistle.mp3"></audio>
 
-    <div id="setup-screen" class="full-screen">
-        <div class="setup-card">
+    <div id="login" class="screen">
+        <div class="card">
             <h1>SayChat</h1>
-            <div class="avatar-pick">
-                <img id="setup-prev" src="perfil.png">
-                <input type="file" id="file-in" hidden accept="image/*" onchange="loadImg(this)">
-                <button onclick="document.getElementById('file-in').click()">Subir Foto</button>
-            </div>
-            <input type="text" id="setup-user" placeholder="@username único">
-            <input type="text" id="setup-nick" placeholder="Nickname mostrado">
-            <button class="btn-main" onclick="joinChat()">Entrar</button>
+            <img id="p-prev" src="perfil.png" class="big-a" onclick="document.getElementById('f').click()">
+            <input type="file" id="f" hidden onchange="img(this)">
+            <input type="text" id="u" placeholder="@username">
+            <input type="text" id="n" placeholder="Nickname">
+            <button onclick="entrar()">ENTRAR</button>
         </div>
     </div>
 
     <div id="app" style="display:none">
-        <aside id="side">
-            <header class="me-header">
-                <img id="me-img" src="perfil.png" onclick="toggleEdit()">
-                <div class="me-names" onclick="toggleEdit()">
-                    <b id="me-nick"></b>
-                    <small id="me-user"></small>
-                </div>
-            </header>
-            
-            <div id="edit-box" class="edit-box" style="display:none">
-                <input type="text" id="new-nick" placeholder="Nuevo nickname">
-                <button onclick="saveNewNick()">✓</button>
+        <aside>
+            <div class="me">
+                <img id="m-img" src="perfil.png">
+                <div><b id="m-nick"></b><br><small id="m-user"></small></div>
             </div>
-
-            <div class="search">
-                <input type="text" id="add-target" placeholder="Agregar @username...">
-                <button onclick="reqAdd()">+</button>
+            <div class="add">
+                <input type="text" id="target" placeholder="@username...">
+                <button onclick="add()">+</button>
             </div>
-
             <div id="list"></div>
         </aside>
 
-        <main id="chat">
-            <header id="chat-header">
-                <h3 id="chat-title">Cargando...</h3>
-            </header>
-            <div id="msg-box"></div>
-            <form id="msg-form">
-                <input type="text" id="msg-in" placeholder="Escribe un mensaje..." autocomplete="off">
-                <button type="submit">➤</button>
+        <main>
+            <header><h3 id="chat-t">Global</h3></header>
+            <div id="msgs"></div>
+            <form id="send">
+                <input type="text" id="in" placeholder="Mensaje..." autocomplete="off">
+                <button>➤</button>
             </form>
         </main>
     </div>
@@ -61,149 +46,103 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        let my = { 
-            u: localStorage.getItem('say_u'), 
-            n: localStorage.getItem('say_n'), 
-            a: localStorage.getItem('say_a') || 'perfil.png',
-            contacts: JSON.parse(localStorage.getItem('say_c') || '{}')
-        };
-        let active = 'public';
-        let unread = {};
+        let my = { u: localStorage.getItem('u'), n: localStorage.getItem('n'), a: localStorage.getItem('a') || 'perfil.png' };
+        let active = 'Global';
+        let db = { 'Global': [] }; // AQUÍ SE GUARDAN LOS MENSAJES REALMENTE
+        let contacts = JSON.parse(localStorage.getItem('contacts') || '{}');
 
-        function loadImg(i) {
+        function img(i) {
             const r = new FileReader();
-            r.onload = e => document.getElementById('setup-prev').src = e.target.result;
+            r.onload = e => { document.getElementById('p-prev').src = e.target.result; my.a = e.target.result; };
             r.readAsDataURL(i.files[0]);
         }
 
-        window.onload = () => { if(my.u) { joinChat(true); } else { document.getElementById('setup-screen').style.display='flex'; } };
-
-        function joinChat(auto = false) {
-            if(!auto) {
-                my.u = document.getElementById('setup-user').value.toLowerCase().replace(/[^a-z0-9]/g,'');
-                my.n = document.getElementById('setup-nick').value;
-                my.a = document.getElementById('setup-prev').src;
-                if(my.u.length < 3) return alert("User muy corto");
-                localStorage.setItem('say_u', my.u);
-                localStorage.setItem('say_n', my.n);
-                localStorage.setItem('say_a', my.a);
-            }
-            document.getElementById('setup-screen').style.display='none';
-            document.getElementById('app').style.display='flex';
-            document.getElementById('me-img').src = my.a;
-            document.getElementById('me-nick').innerText = my.n;
-            document.getElementById('me-user').innerText = '@'+my.u;
-            
-            socket.emit('register', { username: my.u, nickname: my.n, avatar: my.a });
-            renderList();
-            openChat('public');
+        function entrar() {
+            my.u = document.getElementById('u').value.toLowerCase().trim();
+            my.n = document.getElementById('n').value.trim();
+            if(!my.u || !my.n) return;
+            localStorage.setItem('u', my.u); localStorage.setItem('n', my.n); localStorage.setItem('a', my.a);
+            location.reload();
         }
 
-        function toggleEdit() { 
-            const b = document.getElementById('edit-box');
-            b.style.display = b.style.display==='none'?'flex':'none';
+        if(my.u) {
+            document.getElementById('login').style.display = 'none';
+            document.getElementById('app').style.display = 'flex';
+            document.getElementById('m-img').src = my.a;
+            document.getElementById('m-nick').innerText = my.n;
+            document.getElementById('m-user').innerText = '@'+my.u;
+            socket.emit('register', { user: my.u, nick: my.n, avatar: my.a });
         }
 
-        function saveNewNick() {
-            const n = document.getElementById('new-nick').value;
-            if(n) {
-                my.n = n;
-                localStorage.setItem('say_n', n);
-                document.getElementById('me-nick').innerText = n;
-                socket.emit('update_profile', { nickname: n, avatar: my.a });
-                toggleEdit();
+        function add() {
+            const t = document.getElementById('target').value.toLowerCase().trim();
+            if(t && t !== my.u) {
+                contacts[t] = { nick: t, a: 'perfil.png' };
+                if(!db[t]) db[t] = [];
+                save(); renderList();
             }
         }
 
-        function reqAdd() {
-            const t = document.getElementById('add-target').value.toLowerCase().trim();
-            if(t && t !== my.u) socket.emit('check_user', t);
-            document.getElementById('add-target').value = '';
-        }
-
-        socket.on('user_exists', d => {
-            my.contacts[d.username] = { nickname: d.nickname, avatar: d.avatar };
-            localStorage.setItem('say_c', JSON.stringify(my.contacts));
-            renderList();
-        });
+        function save() { localStorage.setItem('contacts', JSON.stringify(contacts)); }
 
         function openChat(t) {
             active = t;
-            unread[t] = 0;
-            document.getElementById('chat-title').innerText = t === 'public' ? 'Chat Global' : `@${t}`;
-            document.getElementById('msg-box').innerHTML = '';
-            if(t === 'public') socket.emit('get_public');
-            else socket.emit('get_private_history', t);
-            renderList();
+            document.getElementById('chat-t').innerText = t === 'Global' ? 'Global' : '@'+t;
+            renderMsgs();
         }
 
-        document.getElementById('msg-form').onsubmit = (e) => {
+        document.getElementById('send').onsubmit = e => {
             e.preventDefault();
-            const i = document.getElementById('msg-in');
-            if(!i.value) return;
-            const data = { text: i.value, to: active, avatar: my.a, nickname: my.n };
-            if(active === 'public') socket.emit('send_public', data);
+            const val = document.getElementById('in').value;
+            if(!val) return;
+            const m = { from: my.u, nick: my.n, text: val, avatar: my.a, time: 'visto' };
+            
+            if(active === 'Global') socket.emit('send_public', m);
             else {
-                socket.emit('send_private', data);
-                drawMsg({ from: my.u, text: i.value, time: 'visto' });
+                db[active].push(m);
+                socket.emit('send_private', { to: active, text: val, nick: my.n, avatar: my.a });
+                renderMsgs();
             }
-            i.value = '';
+            document.getElementById('in').value = '';
         };
 
-        socket.on('broadcast_public', d => { if(active === 'public') drawMsg(d); else markUnread('public'); });
+        socket.on('rcv_public', m => { db['Global'].push(m); if(active === 'Global') renderMsgs(); });
         
-        socket.on('private_message', d => {
-            if(active === d.from) drawMsg(d);
-            else { 
-                markUnread(d.from); 
-                document.getElementById('whistle').play(); 
-            }
+        socket.on('rcv_private', m => {
+            if(!db[m.from]) db[m.from] = [];
+            db[m.from].push(m);
+            if(!contacts[m.from]) { contacts[m.from] = { nick: m.nick, a: m.avatar }; save(); renderList(); }
+            if(active === m.from) renderMsgs();
+            else document.getElementById('whistle').play();
         });
 
-        socket.on('load_private', d => { document.getElementById('msg-box').innerHTML = ''; d.history.forEach(drawMsg); });
-        socket.on('load_public', h => { if(active==='public') { document.getElementById('msg-box').innerHTML=''; h.forEach(drawMsg); }});
-
-        function drawMsg(d) {
-            const box = document.getElementById('msg-box');
-            const isMe = d.from === my.u;
-            // IMPORTANTE: Obtenemos el perfil actual del mapa de usuarios o contactos
-            const senderNick = isMe ? my.n : (my.contacts[d.from]?.nickname || d.nickname || d.from);
-            const senderAvatar = isMe ? my.a : (my.contacts[d.from]?.avatar || d.avatar || 'perfil.png');
-
-            const div = document.createElement('div');
-            div.className = `msg ${isMe ? 'me' : 'other'}`;
-            div.innerHTML = `
-                ${!isMe ? `<img src="${senderAvatar}" class="msg-img">` : ''}
-                <div class="bubble">
-                    <small class="nick">${senderNick}</small>
-                    <p>${d.text}</p>
-                    <div class="msg-footer">
-                        <span class="user-tag">@${d.from}</span>
-                        <span class="time">${d.time || ''}</span>
+        function renderMsgs() {
+            const box = document.getElementById('msgs');
+            box.innerHTML = '';
+            (db[active] || []).forEach(m => {
+                const mine = m.from === my.u;
+                const d = document.createElement('div');
+                d.className = `row ${mine ? 'me' : 'ot'}`;
+                d.innerHTML = `
+                    <div class="bub">
+                        <small>${m.nick}</small>
+                        <p>${m.text}</p>
+                        <span>${m.time}</span>
                     </div>
-                </div>
-            `;
-            box.appendChild(div);
+                `;
+                box.appendChild(d);
+            });
             box.scrollTop = box.scrollHeight;
         }
 
-        function markUnread(u) { unread[u] = (unread[u]||0)+1; renderList(); }
-
         function renderList() {
-            const list = document.getElementById('list');
-            list.innerHTML = `<div class="contact ${active==='public'?'active':''}" onclick="openChat('public')">
-                <img src="perfil.png" class="a-img">
-                <div class="c-info"><b>Chat Global</b></div>
-                ${unread['public']?`<span class="badge">${unread['public']}</span>`:''}
-            </div>`;
-            Object.keys(my.contacts).forEach(u => {
-                list.innerHTML += `<div class="contact ${active===u?'active':''}" onclick="openChat('${u}')">
-                    <img src="${my.contacts[u].avatar}" class="a-img">
-                    <div class="c-info"><b>${my.contacts[u].nickname}</b><br><small>@${u}</small></div>
-                    ${unread[u]?`<span class="badge">${unread[u]}</span>`:''}
-                </div>`;
+            const l = document.getElementById('list');
+            l.innerHTML = `<div class="con" onclick="openChat('Global')"><b>Chat Global</b></div>`;
+            Object.keys(contacts).forEach(c => {
+                l.innerHTML += `<div class="con" onclick="openChat('${c}')"><b>${contacts[c].nick}</b><br><small>@${c}</small></div>`;
             });
         }
+        renderList();
     </script>
 </body>
 </html>
