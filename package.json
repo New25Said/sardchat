@@ -1,6 +1,7 @@
 {
-  "name": "say-chat-2",
+  "name": "whatsapp-clone-basic",
   "version": "1.0.0",
+  "description": "Chat simple con persistencia en memoria",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
