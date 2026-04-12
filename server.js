@@ -1,71 +1,83 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+app.use(express.json());
 app.use(express.static(__dirname));
 
-let users = {}; // Almacena { username: { nick, avatar, id } }
-let publicHistory = [];
-let privateHistories = {}; 
+// 🧠 memoria temporal
+let usersDB = {}; // username -> { password, nickname }
+let onlineUsers = {}; // username -> socket.id
+let chatHistory = [];
 
 io.on('connection', (socket) => {
-    socket.on('register', (data) => {
-        // Registro de usuario con su perfil completo
-        users[data.u] = { nick: data.n, avatar: data.a || 'perfil.png', id: socket.id };
-        socket.username = data.u;
-        io.emit('sync_users', users); // Sincroniza la lista de contactos para todos
-        socket.emit('init_public', publicHistory);
-    });
 
-    socket.on('update_profile', (data) => {
-        if (users[socket.username]) {
-            users[socket.username].nick = data.n;
-            users[socket.username].avatar = data.a;
-            io.emit('sync_users', users); // Actualización instantánea de perfiles
+    // 🟢 REGISTRO
+    socket.on('register', ({ username, password, nickname }) => {
+        if (usersDB[username]) {
+            socket.emit('register error', 'Usuario ya existe');
+        } else {
+            usersDB[username] = { password, nickname };
+            socket.emit('register success');
         }
     });
 
-    socket.on('msg_public', (msg) => {
-        const fullMsg = { 
-            ...msg, 
-            from: socket.username,
-            time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) 
+    // 🔵 LOGIN
+    socket.on('login', ({ username, password }) => {
+        const user = usersDB[username];
+
+        if (!user || user.password !== password) {
+            socket.emit('login error', 'Datos incorrectos');
+            return;
+        }
+
+        if (onlineUsers[username]) {
+            socket.emit('login error', 'Usuario ya conectado');
+            return;
+        }
+
+        socket.username = username;
+        onlineUsers[username] = socket.id;
+
+        socket.emit('login success', {
+            username,
+            nickname: user.nickname
+        });
+
+        socket.emit('load history', chatHistory);
+    });
+
+    // 💬 MENSAJE GLOBAL
+    socket.on('send message', (text) => {
+        if (!socket.username) return;
+
+        const user = usersDB[socket.username];
+
+        const msg = {
+            user: socket.username,
+            nickname: user.nickname,
+            text,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
-        publicHistory.push(fullMsg);
-        if (publicHistory.length > 50) publicHistory.shift();
-        io.emit('rcv_public', fullMsg);
+
+        chatHistory.push(msg);
+        if (chatHistory.length > 100) chatHistory.shift();
+
+        io.emit('broadcast message', msg);
     });
 
-    socket.on('msg_private', (data) => {
-        const target = users[data.to];
-        if (target) {
-            const pm = { 
-                from: socket.username, 
-                text: data.text,
-                time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) 
-            };
-            
-            const room = [socket.username, data.to].sort().join('-');
-            if (!privateHistories[room]) privateHistories[room] = [];
-            privateHistories[room].push(pm);
-
-            io.to(target.id).emit('rcv_private', pm);
-        }
-    });
-
-    socket.on('get_private_history', (other) => {
-        const room = [socket.username, other].sort().join('-');
-        socket.emit('load_private', { with: other, history: privateHistories[room] || [] });
-    });
-
+    // ❌ DESCONECTAR
     socket.on('disconnect', () => {
-        if (socket.username) delete users[socket.username];
-        io.emit('sync_users', users);
+        if (socket.username) {
+            delete onlineUsers[socket.username];
+        }
     });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`SayChat corriendo en ${PORT}`));
+server.listen(PORT, () => console.log("Servidor activo 🚀"));
