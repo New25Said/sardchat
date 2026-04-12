@@ -1,193 +1,103 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SayChat</title>
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<title>Mini WhatsApp</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <audio id="whistle" src="whatsapp-assobio-oficial-2014-whistle.mp3" preload="auto"></audio>
 
-    <div id="setup" class="screen">
-        <div class="card">
-            <h1>SayChat</h1>
-            <div class="profile-pick">
-                <img id="setup-img" src="perfil.png" class="big-a">
-                <input type="file" id="f-in" hidden onchange="prev(this)">
-                <button onclick="document.getElementById('f-in').click()">Elegir Foto</button>
-            </div>
-            <input type="text" id="setup-u" placeholder="@username (para agregarte)">
-            <input type="text" id="setup-n" placeholder="Nickname (nombre público)">
-            <button class="btn-p" onclick="entrar()">ENTRAR</button>
-        </div>
-    </div>
+<div id="login">
+    <h3>Login / Registro</h3>
+    <input id="user" placeholder="username">
+    <input id="nick" placeholder="nickname">
+    <input id="pass" type="password" placeholder="password">
+    <button onclick="register()">Registrarse</button>
+    <button onclick="login()">Entrar</button>
+</div>
 
-    <div id="app" style="display:none">
-        <aside>
-            <header class="me-bar" onclick="showEdit()">
-                <img id="m-img" src="perfil.png" class="a-m">
-                <div class="m-names">
-                    <b id="m-nick"></b>
-                    <small id="m-user"></small>
-                </div>
-            </header>
+<div id="app" style="display:none;">
+    <header><h3>Chat Global</h3></header>
+    <div id="chat-box"></div>
 
-            <div id="edit-pane" class="edit-pane" style="display:none">
-                <input type="text" id="ed-nick" placeholder="Nuevo nick...">
-                <button onclick="update()">✓</button>
-            </div>
+    <form id="chat-form">
+        <input id="msg" placeholder="mensaje">
+        <button>➤</button>
+    </form>
+</div>
 
-            <div class="search">
-                <input type="text" id="t-add" placeholder="Buscar @username...">
-                <button onclick="add()">+</button>
-            </div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
 
-            <div id="contact-list"></div>
-        </aside>
+let currentUser = null;
 
-        <main>
-            <header class="chat-h">
-                <h3 id="chat-title">Chat Global</h3>
-            </header>
-            <div id="msg-box"></div>
-            <form id="send-f">
-                <input type="text" id="msg-in" placeholder="Escribe un mensaje..." autocomplete="off">
-                <button>➤</button>
-            </form>
-        </main>
-    </div>
+// 🧠 validación
+const valid = u => /^[a-z0-9]+$/.test(u);
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-        const socket = io();
-        let my = { u: localStorage.getItem('s_u'), n: localStorage.getItem('s_n'), a: localStorage.getItem('s_a') || 'perfil.png' };
-        let active = 'Global';
-        let chats = { 'Global': [] }; 
-        let contacts = JSON.parse(localStorage.getItem('s_contacts') || '{}');
-        let onlineUsers = {};
+// 🟢 REGISTRO
+function register(){
+    const username = user.value.trim();
+    const password = pass.value.trim();
+    const nickname = nick.value.trim();
 
-        function prev(i) {
-            const r = new FileReader();
-            r.onload = e => document.getElementById('setup-img').src = e.target.result;
-            r.readAsDataURL(i.files[0]);
-        }
+    if(!valid(username)) return alert("username inválido");
 
-        window.onload = () => { if(my.u) startApp(); else document.getElementById('setup').style.display='flex'; };
+    socket.emit('register', { username, password, nickname });
+}
 
-        function entrar() {
-            my.u = document.getElementById('setup-u').value.toLowerCase().replace(/[^a-z0-9]/g,'');
-            my.n = document.getElementById('setup-n').value.trim();
-            my.a = document.getElementById('setup-img').src;
-            if(my.u.length < 3) return alert("Usuario muy corto");
-            localStorage.setItem('s_u', my.u); localStorage.setItem('s_n', my.n); localStorage.setItem('s_a', my.a);
-            location.reload();
-        }
+socket.on('register success', () => alert("Registrado 🚀"));
+socket.on('register error', e => alert(e));
 
-        function startApp() {
-            document.getElementById('app').style.display='flex';
-            document.getElementById('m-img').src = my.a;
-            document.getElementById('m-nick').innerText = my.n;
-            document.getElementById('m-user').innerText = '@'+my.u;
-            socket.emit('register', { u: my.u, n: my.n, a: my.a });
-            renderContacts();
-            openChat('Global');
-        }
+// 🔵 LOGIN
+function login(){
+    const username = user.value.trim();
+    const password = pass.value.trim();
 
-        function showEdit() { document.getElementById('edit-pane').style.display = 'flex'; }
-        
-        function update() {
-            const nn = document.getElementById('ed-nick').value;
-            if(nn) {
-                my.n = nn; localStorage.setItem('s_n', nn);
-                document.getElementById('m-nick').innerText = nn;
-                socket.emit('update_profile', { n: my.n, a: my.a });
-                document.getElementById('edit-pane').style.display = 'none';
-            }
-        }
+    socket.emit('login', { username, password });
+}
 
-        function add() {
-            const t = document.getElementById('t-add').value.toLowerCase().trim();
-            if(t && t !== my.u) {
-                contacts[t] = t;
-                localStorage.setItem('s_contacts', JSON.stringify(contacts));
-                renderContacts();
-            }
-            document.getElementById('t-add').value = '';
-        }
+socket.on('login success', (data) => {
+    currentUser = data.username;
 
-        function openChat(t) {
-            active = t;
-            document.getElementById('chat-title').innerText = t === 'Global' ? 'Chat Global' : `@${t}`;
-            document.getElementById('msg-box').innerHTML = '';
-            if(t === 'Global') socket.emit('get_public');
-            else socket.emit('get_private_history', t);
-            renderContacts();
-        }
+    loginDiv.style.display = "none";
+    app.style.display = "flex";
+});
 
-        document.getElementById('send-f').onsubmit = e => {
-            e.preventDefault();
-            const val = document.getElementById('msg-in').value;
-            if(!val) return;
-            const m = { from: my.u, n: my.n, a: my.a, text: val, time: 'visto' };
-            
-            if(active === 'Global') socket.emit('msg_public', m);
-            else {
-                if(!chats[active]) chats[active] = [];
-                chats[active].push(m);
-                socket.emit('msg_private', { to: active, text: val });
-                renderMsg(m); // Carga instantánea
-            }
-            document.getElementById('msg-in').value = '';
-        };
+socket.on('login error', e => alert(e));
 
-        socket.on('sync_users', data => { onlineUsers = data; renderContacts(); });
-        socket.on('rcv_public', m => { chats['Global'].push(m); if(active==='Global') renderMsg(m); });
-        socket.on('rcv_private', m => {
-            if(!chats[m.from]) chats[m.from] = [];
-            chats[m.from].push(m);
-            if(active === m.from) renderMsg(m);
-            else document.getElementById('whistle').play();
-        });
+// 💬 CHAT
+chatForm.onsubmit = e => {
+    e.preventDefault();
+    if(msg.value.trim()){
+        socket.emit('send message', msg.value);
+        msg.value="";
+    }
+};
 
-        socket.on('load_private', d => d.history.forEach(renderMsg));
-        socket.on('init_public', h => h.forEach(renderMsg));
+socket.on('load history', (h)=>{
+    chatBox.innerHTML="";
+    h.forEach(addMsg);
+});
 
-        function renderMsg(m) {
-            const box = document.getElementById('msg-box');
-            const isMe = m.from === my.u;
-            const sNick = isMe ? my.n : (onlineUsers[m.from]?.nick || m.n || m.from);
-            const sAvatar = isMe ? my.a : (onlineUsers[m.from]?.avatar || m.a || 'perfil.png');
+socket.on('broadcast message', addMsg);
 
-            const div = document.createElement('div');
-            div.className = `row ${isMe ? 'me' : 'ot'}`;
-            div.innerHTML = `
-                <div class="bub">
-                    <small class="nick">${sNick}</small>
-                    <p>${m.text}</p>
-                    <div class="foot">
-                        <span class="tag">@${m.from}</span>
-                        <span class="time">${m.time || ''}</span>
-                    </div>
-                </div>
-            `;
-            box.appendChild(div);
-            box.scrollTop = box.scrollHeight;
-        }
+function addMsg(m){
+    const d = document.createElement("div");
+    d.innerHTML = `<b>${m.nickname}</b>: ${m.text} <small>${m.time}</small>`;
+    chatBox.appendChild(d);
+}
 
-        function renderContacts() {
-            const l = document.getElementById('contact-list');
-            l.innerHTML = `<div class="con-item ${active==='Global'?'act':''}" onclick="openChat('Global')"><b>Chat Global</b></div>`;
-            Object.keys(contacts).forEach(u => {
-                const info = onlineUsers[u] || { nick: u, avatar: 'perfil.png' };
-                l.innerHTML += `
-                    <div class="con-item ${active === u ? 'act' : ''}" onclick="openChat('${u}')">
-                        <img src="${info.avatar}" class="a-s">
-                        <div><b>${info.nick}</b><br><small>@${u}</small></div>
-                    </div>
-                `;
-            });
-        }
-    </script>
+// refs
+const loginDiv = document.getElementById('login');
+const app = document.getElementById('app');
+const user = document.getElementById('user');
+const pass = document.getElementById('pass');
+const nick = document.getElementById('nick');
+const msg = document.getElementById('msg');
+const chatBox = document.getElementById('chat-box');
+const chatForm = document.getElementById('chat-form');
+
+</script>
 </body>
 </html>
