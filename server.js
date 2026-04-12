@@ -7,54 +7,71 @@ const io = new Server(server);
 
 app.use(express.static(__dirname));
 
-let users = {}; 
+let users = {}; // { username: { nickname, avatar, id } }
 let publicHistory = [];
 let privateHistories = {}; 
 
 io.on('connection', (socket) => {
     socket.on('register', (data) => {
-        users[data.username] = { id: socket.id, avatar: data.avatar, nickname: data.nickname };
+        // Si el usuario ya existe, actualizamos su ID de socket
+        users[data.username] = { 
+            nickname: data.nickname, 
+            avatar: data.avatar || 'perfil.png', 
+            id: socket.id 
+        };
         socket.username = data.username;
-        io.emit('update users', users);
-        socket.emit('load public', publicHistory);
+        io.emit('update_users', users);
+        socket.emit('load_public', publicHistory);
     });
 
-    socket.on('change profile', (data) => {
+    socket.on('update_profile', (data) => {
         if (users[socket.username]) {
-            users[socket.username].avatar = data.avatar;
             users[socket.username].nickname = data.nickname;
-            io.emit('profile updated', { username: socket.username, avatar: data.avatar, nickname: data.nickname });
+            users[socket.username].avatar = data.avatar;
+            // Avisar a todos del cambio para actualizar mensajes viejos
+            io.emit('profile_changed', { 
+                username: socket.username, 
+                nickname: data.nickname, 
+                avatar: data.avatar 
+            });
         }
     });
 
-    socket.on('send public', (msg) => {
-        const data = { ...msg, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
-        publicHistory.push(data);
-        if (publicHistory.length > 50) publicHistory.shift();
-        io.emit('broadcast public', data);
+    socket.on('send_public', (msg) => {
+        const fullMsg = { 
+            ...msg, 
+            from: socket.username, 
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+        };
+        publicHistory.push(fullMsg);
+        io.emit('broadcast_public', fullMsg);
     });
 
-    socket.on('send private', (data) => {
+    socket.on('send_private', (data) => {
         const room = [socket.username, data.to].sort().join('-');
         if (!privateHistories[room]) privateHistories[room] = [];
-        const msgPayload = { ...data, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), from: socket.username };
+        
+        const msgPayload = {
+            from: socket.username,
+            text: data.text,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
         privateHistories[room].push(msgPayload);
+
         const target = users[data.to];
-        if (target) io.to(target.id).emit('private message', msgPayload);
+        if (target) {
+            io.to(target.id).emit('private_message', { ...msgPayload, nickname: users[socket.username].nickname, avatar: users[socket.username].avatar });
+        }
     });
 
-    socket.on('get private history', (otherUser) => {
-        const room = [socket.username, otherUser].sort().join('-');
-        socket.emit('load private', { with: otherUser, history: privateHistories[room] || [] });
+    socket.on('get_private_history', (other) => {
+        const room = [socket.username, other].sort().join('-');
+        socket.emit('load_private', { with: other, history: privateHistories[room] || [] });
     });
 
-    socket.on('check user', (target) => {
-        if (users[target]) socket.emit('user exists', { username: target, avatar: users[target].avatar, nickname: users[target].nickname });
-        else socket.emit('user not found', target);
-    });
-
-    socket.on('disconnect', () => {
-        if (socket.username) { delete users[socket.username]; io.emit('update users', users); }
+    socket.on('check_user', (target) => {
+        if (users[target]) socket.emit('user_exists', { username: target, ...users[target] });
+        else socket.emit('user_not_found', target);
     });
 });
 
