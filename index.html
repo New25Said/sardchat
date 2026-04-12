@@ -9,35 +9,50 @@
 <body>
     <audio id="whistle" src="whatsapp-assobio-oficial-2014-whistle.mp3"></audio>
 
-    <div id="login" class="screen">
+    <div id="setup" class="screen">
         <div class="card">
-            <h1>SayChat</h1>
-            <img id="p-prev" src="perfil.png" class="big-a" onclick="document.getElementById('f').click()">
-            <input type="file" id="f" hidden onchange="img(this)">
-            <input type="text" id="u" placeholder="@username">
-            <input type="text" id="n" placeholder="Nickname">
-            <button onclick="entrar()">ENTRAR</button>
+            <h1 style="color:var(--p)">SayChat</h1>
+            <div class="profile-pick">
+                <img id="setup-img" src="perfil.png" class="big-a">
+                <input type="file" id="f-in" hidden onchange="prev(this)">
+                <button onclick="document.getElementById('f-in').click()">Elegir Foto</button>
+            </div>
+            <input type="text" id="setup-u" placeholder="@username único">
+            <input type="text" id="setup-n" placeholder="Nickname (Nombre)">
+            <button class="btn-p" onclick="entrar()">ENTRAR</button>
         </div>
     </div>
 
     <div id="app" style="display:none">
         <aside>
-            <div class="me">
-                <img id="m-img" src="perfil.png">
-                <div><b id="m-nick"></b><br><small id="m-user"></small></div>
+            <header class="me-bar" onclick="showEdit()">
+                <img id="m-img" src="perfil.png" class="a-m">
+                <div class="m-names">
+                    <b id="m-nick"></b>
+                    <small id="m-user"></small>
+                </div>
+            </header>
+
+            <div id="edit-pane" class="edit-pane" style="display:none">
+                <input type="text" id="ed-nick" placeholder="Nuevo nick...">
+                <button onclick="update()">✓</button>
             </div>
-            <div class="add">
-                <input type="text" id="target" placeholder="@username...">
+
+            <div class="search">
+                <input type="text" id="t-add" placeholder="Buscar @username...">
                 <button onclick="add()">+</button>
             </div>
-            <div id="list"></div>
+
+            <div id="contact-list"></div>
         </aside>
 
         <main>
-            <header><h3 id="chat-t">Global</h3></header>
-            <div id="msgs"></div>
-            <form id="send">
-                <input type="text" id="in" placeholder="Mensaje..." autocomplete="off">
+            <header class="chat-h">
+                <h3 id="chat-title">Chat Global</h3>
+            </header>
+            <div id="msg-box"></div>
+            <form id="send-f">
+                <input type="text" id="msg-in" placeholder="Escribe un mensaje..." autocomplete="off">
                 <button>➤</button>
             </form>
         </main>
@@ -46,103 +61,134 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        let my = { u: localStorage.getItem('u'), n: localStorage.getItem('n'), a: localStorage.getItem('a') || 'perfil.png' };
+        let my = { u: localStorage.getItem('s_u'), n: localStorage.getItem('s_n'), a: localStorage.getItem('s_a') || 'perfil.png' };
         let active = 'Global';
-        let db = { 'Global': [] }; // AQUÍ SE GUARDAN LOS MENSAJES REALMENTE
-        let contacts = JSON.parse(localStorage.getItem('contacts') || '{}');
+        let chats = { 'Global': [] }; // Persistencia de mensajes en esta sesión
+        let contacts = JSON.parse(localStorage.getItem('s_contacts') || '{}');
+        let onlineUsers = {};
 
-        function img(i) {
+        function prev(i) {
             const r = new FileReader();
-            r.onload = e => { document.getElementById('p-prev').src = e.target.result; my.a = e.target.result; };
+            r.onload = e => document.getElementById('setup-img').src = e.target.result;
             r.readAsDataURL(i.files[0]);
         }
 
+        window.onload = () => { if(my.u) startApp(); else document.getElementById('setup').style.display='flex'; };
+
         function entrar() {
-            my.u = document.getElementById('u').value.toLowerCase().trim();
-            my.n = document.getElementById('n').value.trim();
-            if(!my.u || !my.n) return;
-            localStorage.setItem('u', my.u); localStorage.setItem('n', my.n); localStorage.setItem('a', my.a);
+            my.u = document.getElementById('setup-u').value.toLowerCase().replace(/\s/g,'');
+            my.n = document.getElementById('setup-n').value;
+            my.a = document.getElementById('setup-img').src;
+            if(my.u.length < 3) return alert("User muy corto");
+            localStorage.setItem('s_u', my.u); localStorage.setItem('s_n', my.n); localStorage.setItem('s_a', my.a);
             location.reload();
         }
 
-        if(my.u) {
-            document.getElementById('login').style.display = 'none';
-            document.getElementById('app').style.display = 'flex';
+        function startApp() {
+            document.getElementById('setup').style.display='none';
+            document.getElementById('app').style.display='flex';
             document.getElementById('m-img').src = my.a;
             document.getElementById('m-nick').innerText = my.n;
             document.getElementById('m-user').innerText = '@'+my.u;
-            socket.emit('register', { user: my.u, nick: my.n, avatar: my.a });
+            socket.emit('register', { u: my.u, n: my.n, a: my.a });
+            renderContacts();
+            openChat('Global');
+        }
+
+        function showEdit() { document.getElementById('edit-pane').style.display = 'flex'; }
+        
+        function update() {
+            const nn = document.getElementById('ed-nick').value;
+            if(nn) {
+                my.n = nn; localStorage.setItem('s_n', nn);
+                document.getElementById('m-nick').innerText = nn;
+                socket.emit('update_profile', { n: my.n, a: my.a });
+                document.getElementById('edit-pane').style.display = 'none';
+            }
         }
 
         function add() {
-            const t = document.getElementById('target').value.toLowerCase().trim();
+            const t = document.getElementById('t-add').value.toLowerCase().trim();
             if(t && t !== my.u) {
-                contacts[t] = { nick: t, a: 'perfil.png' };
-                if(!db[t]) db[t] = [];
-                save(); renderList();
+                contacts[t] = t; // Guardamos el username
+                localStorage.setItem('s_contacts', JSON.stringify(contacts));
+                renderContacts();
             }
+            document.getElementById('t-add').value = '';
         }
-
-        function save() { localStorage.setItem('contacts', JSON.stringify(contacts)); }
 
         function openChat(t) {
             active = t;
-            document.getElementById('chat-t').innerText = t === 'Global' ? 'Global' : '@'+t;
+            document.getElementById('chat-title').innerText = t === 'Global' ? 'Global' : '@'+t;
             renderMsgs();
         }
 
-        document.getElementById('send').onsubmit = e => {
+        document.getElementById('send-f').onsubmit = e => {
             e.preventDefault();
-            const val = document.getElementById('in').value;
+            const val = document.getElementById('msg-in').value;
             if(!val) return;
-            const m = { from: my.u, nick: my.n, text: val, avatar: my.a, time: 'visto' };
+            const m = { from: my.u, n: my.n, a: my.a, text: val };
             
-            if(active === 'Global') socket.emit('send_public', m);
+            if(active === 'Global') socket.emit('msg_public', m);
             else {
-                db[active].push(m);
-                socket.emit('send_private', { to: active, text: val, nick: my.n, avatar: my.a });
+                if(!chats[active]) chats[active] = [];
+                const pm = { ...m, time: 'visto' };
+                chats[active].push(pm);
+                socket.emit('msg_private', { to: active, text: val });
                 renderMsgs();
             }
-            document.getElementById('in').value = '';
+            document.getElementById('msg-in').value = '';
         };
 
-        socket.on('rcv_public', m => { db['Global'].push(m); if(active === 'Global') renderMsgs(); });
-        
+        socket.on('sync_users', data => onlineUsers = data);
+        socket.on('rcv_public', m => { chats['Global'].push(m); if(active==='Global') renderMsgs(); });
         socket.on('rcv_private', m => {
-            if(!db[m.from]) db[m.from] = [];
-            db[m.from].push(m);
-            if(!contacts[m.from]) { contacts[m.from] = { nick: m.nick, a: m.avatar }; save(); renderList(); }
+            if(!chats[m.from]) chats[m.from] = [];
+            chats[m.from].push(m);
             if(active === m.from) renderMsgs();
             else document.getElementById('whistle').play();
         });
 
         function renderMsgs() {
-            const box = document.getElementById('msgs');
+            const box = document.getElementById('msg-box');
             box.innerHTML = '';
-            (db[active] || []).forEach(m => {
-                const mine = m.from === my.u;
-                const d = document.createElement('div');
-                d.className = `row ${mine ? 'me' : 'ot'}`;
-                d.innerHTML = `
+            (chats[active] || []).forEach(m => {
+                const isMe = m.from === my.u;
+                // Buscamos datos frescos de onlineUsers para fotos/nicks actualizados
+                const senderNick = onlineUsers[m.from]?.nick || m.n || m.from;
+                const senderAvatar = onlineUsers[m.from]?.avatar || m.a || 'perfil.png';
+
+                const div = document.createElement('div');
+                div.className = `row ${isMe ? 'me' : 'ot'}`;
+                div.innerHTML = `
                     <div class="bub">
-                        <small>${m.nick}</small>
+                        <small class="nick">${senderNick}</small>
                         <p>${m.text}</p>
-                        <span>${m.time}</span>
+                        <div class="foot">
+                            <span class="tag">@${m.from}</span>
+                            <span class="time">${m.time || ''}</span>
+                        </div>
                     </div>
                 `;
-                box.appendChild(d);
+                box.appendChild(div);
             });
             box.scrollTop = box.scrollHeight;
         }
 
-        function renderList() {
-            const l = document.getElementById('list');
-            l.innerHTML = `<div class="con" onclick="openChat('Global')"><b>Chat Global</b></div>`;
-            Object.keys(contacts).forEach(c => {
-                l.innerHTML += `<div class="con" onclick="openChat('${c}')"><b>${contacts[c].nick}</b><br><small>@${c}</small></div>`;
+        function renderContacts() {
+            const l = document.getElementById('contact-list');
+            l.innerHTML = `<div class="con-item" onclick="openChat('Global')"><b>Chat Global</b></div>`;
+            Object.keys(contacts).forEach(u => {
+                const info = onlineUsers[u] || { nick: u, avatar: 'perfil.png' };
+                l.innerHTML += `
+                    <div class="con-item ${active === u ? 'act' : ''}" onclick="openChat('${u}')">
+                        <img src="${info.avatar}" class="a-s">
+                        <div><b>${info.nick}</b><br><small>@${u}</small></div>
+                    </div>
+                `;
             });
         }
-        renderList();
+        setInterval(renderContacts, 3000); // Auto-actualizar lista cada 3 seg
     </script>
 </body>
 </html>
