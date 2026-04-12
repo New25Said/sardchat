@@ -14,21 +14,26 @@
 
 <div id="app" style="display:none;">
 
-  <div id="header">
-    💬 Global Chat
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <h2>Chats</h2>
+    <div style="padding:10px;">🌍 Global</div>
   </div>
 
-  <div id="chat"></div>
+  <!-- CHAT -->
+  <div id="chatArea">
 
-  <div id="inputArea">
-    <input id="msg" placeholder="Mensaje">
-    <button onclick="enviar()">➤</button>
+    <div id="header">
+      💬 Global Chat
+    </div>
+
+    <div id="chat"></div>
+
+    <div id="inputArea">
+      <input id="msg" placeholder="Mensaje">
+      <button onclick="enviar()">➤</button>
+    </div>
+
   </div>
 
 </div>
-
-<script src="/socket.io/socket.io.js"></script>
-<script src="app.js"></script>
-
-</body>
-</html>
