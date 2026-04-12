@@ -9,33 +9,46 @@ app.use(express.static(__dirname));
 
 let users = {}; // { nickname: { id, avatar } }
 let publicHistory = [];
+let privateHistories = {}; // { "user1-user2": [msgs] }
 
 io.on('connection', (socket) => {
     socket.on('register', (data) => {
-        // Guardamos al usuario y su avatar
         users[data.user] = { id: socket.id, avatar: data.avatar };
         socket.nickname = data.user;
-        io.emit('update users', users); // Avisar a todos quién está conectado
+        io.emit('update users', users);
         socket.emit('load public', publicHistory);
     });
 
-    // Mensaje Público
     socket.on('send public', (msg) => {
         const data = { ...msg, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
         publicHistory.push(data);
-        if (publicHistory.length > 50) publicHistory.shift();
+        if (publicHistory.length > 100) publicHistory.shift(); // Límite de seguridad
         io.emit('broadcast public', data);
     });
 
-    // Mensaje Privado
+    socket.on('get private history', (otherUser) => {
+        const room = [socket.nickname, otherUser].sort().join('-');
+        socket.emit('load private', { 
+            with: otherUser, 
+            history: privateHistories[room] || [] 
+        });
+    });
+
     socket.on('send private', (data) => {
-        const target = users[data.to];
+        const room = [socket.nickname, data.to].sort().join('-');
+        if (!privateHistories[room]) privateHistories[room] = [];
+
         const msgPayload = {
             from: socket.nickname,
             text: data.text,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             avatar: data.avatar
         };
+
+        privateHistories[room].push(msgPayload);
+        if (privateHistories[room].length > 200) privateHistories[room].shift(); // Límite
+
+        const target = users[data.to];
         if (target) {
             io.to(target.id).emit('private message', msgPayload);
         }
@@ -50,4 +63,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('Server Ready'));
+server.listen(PORT, () => console.log('SayChat Server Online'));
