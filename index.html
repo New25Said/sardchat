@@ -9,15 +9,14 @@
 <body>
     <div id="welcome-modal" class="modal">
         <div class="modal-content">
-            <h2>Bienvenido a SayChat</h2>
-            <p>Configura tu perfil para empezar</p>
+            <h2>SayChat</h2>
             <div class="setup-avatar">
-                <img id="preview-img" src="https://api.dicebear.com/7.x/pixel-art/svg?seed=Say" class="avatar-large">
-                <button onclick="document.getElementById('file-init').click()">Elegir Foto</button>
+                <img id="preview-img" src="https://api.dicebear.com/7.x/pixel-art/svg?seed=Said" class="avatar-large">
+                <button onclick="document.getElementById('file-init').click()">Subir Foto</button>
                 <input type="file" id="file-init" hidden accept="image/*" onchange="previewFile(this)">
             </div>
-            <input type="text" id="username-init" placeholder="Tu usuario (ej: said26)" autocomplete="off">
-            <button id="start-btn" onclick="finishSetup()">Entrar al Chat</button>
+            <input type="text" id="username-init" placeholder="Tu usuario (ej: said26)" maxlength="15">
+            <button id="start-btn" onclick="finishSetup()">Empezar</button>
         </div>
     </div>
 
@@ -27,12 +26,10 @@
                 <img id="my-avatar-img" src="" class="avatar">
                 <span id="my-name"></span>
             </header>
-            
             <div class="search-container">
-                <input type="text" id="add-contact-input" placeholder="Buscar @usuario...">
+                <input type="text" id="add-contact-input" placeholder="Agregar @user online...">
                 <button onclick="addContact()">+</button>
             </div>
-
             <div id="contact-list"></div>
         </aside>
 
@@ -54,17 +51,10 @@
         let currentUser = localStorage.getItem('say_user');
         let currentAvatar = localStorage.getItem('say_avatar');
         let activeChat = 'public';
-        let myContacts = JSON.parse(localStorage.getItem('say_contacts') || '[]');
+        let myContacts = JSON.parse(localStorage.getItem('say_contacts_v2') || '{}'); // {nick: avatar}
         let unread = {};
 
-        // Control de inicio
-        window.onload = () => {
-            if (!currentUser) {
-                document.getElementById('welcome-modal').style.display = 'flex';
-            } else {
-                startApp();
-            }
-        };
+        window.onload = () => { if (!currentUser) document.getElementById('welcome-modal').style.display = 'flex'; else startApp(); };
 
         function previewFile(input) {
             const reader = new FileReader();
@@ -73,16 +63,12 @@
         }
 
         function finishSetup() {
-            const nameInput = document.getElementById('username-init').value.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
-            const imgData = document.getElementById('preview-img').src;
-            
-            if (nameInput.length < 3) return alert("Usuario muy corto");
-            
-            localStorage.setItem('say_user', nameInput);
-            localStorage.setItem('say_avatar', imgData);
-            currentUser = nameInput;
-            currentAvatar = imgData;
-            
+            const name = document.getElementById('username-init').value.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+            if (name.length < 3) return alert("Usuario inválido");
+            currentUser = name;
+            currentAvatar = document.getElementById('preview-img').src;
+            localStorage.setItem('say_user', currentUser);
+            localStorage.setItem('say_avatar', currentAvatar);
             document.getElementById('welcome-modal').style.display = 'none';
             startApp();
         }
@@ -92,31 +78,33 @@
             document.getElementById('my-name').innerText = currentUser;
             document.getElementById('my-avatar-img').src = currentAvatar;
             socket.emit('register', { user: currentUser, avatar: currentAvatar });
-            updateContactList();
             selectChat('public');
         }
 
+        // AGREGAR CONTACTO VALIDANDO QUE EXISTA
         function addContact() {
-            const input = document.getElementById('add-contact-input');
-            const user = input.value.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
-            if (user && user !== currentUser && !myContacts.includes(user)) {
-                myContacts.push(user);
-                localStorage.setItem('say_contacts', JSON.stringify(myContacts));
-                updateContactList();
-            }
-            input.value = '';
+            const user = document.getElementById('add-contact-input').value.toLowerCase().trim();
+            if (user && user !== currentUser) socket.emit('check user', user);
+            document.getElementById('add-contact-input').value = '';
         }
+
+        socket.on('user exists', (data) => {
+            myContacts[data.user] = data.avatar;
+            localStorage.setItem('say_contacts_v2', JSON.stringify(myContacts));
+            updateContactList();
+            alert(`@${data.user} agregado!`);
+        });
+
+        socket.on('user not found', (user) => alert(`El usuario @${user} no está conectado.`));
 
         function selectChat(target) {
             activeChat = target;
             unread[target] = 0;
             document.getElementById('current-chat-title').innerText = target === 'public' ? 'Chat Global' : `@${target}`;
+            document.getElementById('messages-container').innerHTML = ''; // Limpiar para recargar
             
-            // Limpiar y pedir historial al servidor para que no se dupliquen o pierdan
-            document.getElementById('messages-container').innerHTML = '';
             if (target === 'public') socket.emit('load public');
             else socket.emit('get private history', target);
-            
             updateContactList();
         }
 
@@ -125,13 +113,12 @@
             e.preventDefault();
             const text = document.getElementById('msg-input').value;
             if (!text) return;
-
             const payload = { from: currentUser, text, avatar: currentAvatar };
-            if (activeChat === 'public') {
-                socket.emit('send public', payload);
-            } else {
+
+            if (activeChat === 'public') socket.emit('send public', payload);
+            else {
                 socket.emit('send private', { to: activeChat, text, avatar: currentAvatar });
-                renderMessage({ ...payload, time: 'visto' });
+                renderMessage({ ...payload, time: 'enviado' });
             }
             document.getElementById('msg-input').value = '';
         });
@@ -142,16 +129,25 @@
         });
 
         socket.on('private message', (data) => {
-            if (!myContacts.includes(data.from)) {
-                myContacts.push(data.from);
-                localStorage.setItem('say_contacts', JSON.stringify(myContacts));
+            if (!myContacts[data.from]) {
+                myContacts[data.from] = data.avatar;
+                localStorage.setItem('say_contacts_v2', JSON.stringify(myContacts));
             }
             if (activeChat === data.from) renderMessage(data);
             else { unread[data.from] = (unread[data.from] || 0) + 1; updateContactList(); }
         });
 
-        socket.on('load private', data => data.history.forEach(renderMessage));
-        socket.on('load public', history => history.forEach(renderMessage));
+        socket.on('load private', data => { 
+            document.getElementById('messages-container').innerHTML = '';
+            data.history.forEach(renderMessage); 
+        });
+        
+        socket.on('load public', history => { 
+            if(activeChat === 'public') {
+                document.getElementById('messages-container').innerHTML = '';
+                history.forEach(renderMessage); 
+            }
+        });
 
         function renderMessage(data) {
             const container = document.getElementById('messages-container');
@@ -179,10 +175,10 @@
                     ${unread['public'] > 0 ? `<span class="badge">${unread['public']}</span>` : ''}
                 </div>
             `;
-            myContacts.forEach(c => {
+            Object.keys(myContacts).forEach(c => {
                 list.innerHTML += `
                     <div class="contact-item ${activeChat === c ? 'active' : ''}" onclick="selectChat('${c}')">
-                        <img src="https://api.dicebear.com/7.x/pixel-art/svg?seed=${c}" class="avatar">
+                        <img src="${myContacts[c]}" class="avatar">
                         <div class="info"><span>${c}</span></div>
                         ${unread[c] > 0 ? `<span class="badge">${unread[c]}</span>` : ''}
                     </div>
