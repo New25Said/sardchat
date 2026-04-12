@@ -1,14 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chat Morado 💜</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
 <h1>💜 Chat</h1>
 
+<!-- 🔐 LOGIN -->
 <div id="login">
   <input id="user" placeholder="username">
+  <input id="nick" placeholder="nickname (solo registro)">
   <input id="pass" type="password" placeholder="password">
+
   <button onclick="login()">Login</button>
-  <button onclick="registro()">Registrarse</button>
+  <button onclick="registro()">Registro</button>
 </div>
 
-<div id="chat" style="display:none;">
-  <div id="mensajes"></div>
-  <input id="msg">
-  <button onclick="enviar()">Enviar</button>
+<!-- 🧠 APP -->
+<div id="app" style="display:none;">
+
+  <!-- 🧭 MENÚ -->
+  <div id="menu">
+    <button onclick="irGlobal()">🌍 Global</button>
+    <button onclick="irPrivado()">💬 Privado</button>
+    <button onclick="irGrupos()">👥 Grupos</button>
+    <button onclick="irConfig()">⚙️</button>
+  </div>
+
+  <!-- 🌍 CHAT GLOBAL -->
+  <div id="global" class="pantalla">
+    <h2>Global</h2>
+    <div id="mensajes_global"></div>
+    <input id="msg_global">
+    <button onclick="enviarGlobal()">Enviar</button>
+  </div>
+
+  <!-- 💬 PRIVADO -->
+  <div id="privado" class="pantalla" style="display:none;">
+    <h2>Privado</h2>
+    <input id="user2" placeholder="username destino">
+    <button onclick="cargarPrivado()">Abrir chat</button>
+
+    <div id="mensajes_privado"></div>
+    <input id="msg_privado">
+    <button onclick="enviarPrivado()">Enviar</button>
+  </div>
+
+  <!-- 👥 GRUPOS -->
+  <div id="grupos" class="pantalla" style="display:none;">
+    <h2>Grupos</h2>
+
+    <input id="nombre_grupo" placeholder="nombre grupo">
+    <input id="miembros" placeholder="miembros (coma)">
+    <button onclick="crearGrupo()">Crear</button>
+
+    <input id="grupo_actual" placeholder="grupo">
+    <button onclick="abrirGrupo()">Abrir</button>
+
+    <div id="mensajes_grupo"></div>
+    <input id="msg_grupo">
+    <button onclick="enviarGrupo()">Enviar</button>
+  </div>
+
+  <!-- ⚙️ CONFIG -->
+  <div id="config" class="pantalla" style="display:none;">
+    <h2>Configuración</h2>
+
+    <input id="newnick" placeholder="nuevo nickname">
+    <input type="file" id="photo">
+
+    <button onclick="guardarPerfil()">Guardar perfil</button>
+
+    <h3>Tema</h3>
+    <button onclick="tema('morado')">💜 Morado</button>
+    <button onclick="tema('oscuro')">🌑 Oscuro</button>
+    <button onclick="tema('azul')">💙 Azul</button>
+  </div>
+
 </div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
