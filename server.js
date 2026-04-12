@@ -7,7 +7,7 @@ const io = new Server(server);
 
 app.use(express.static(__dirname));
 
-let users = {}; 
+let users = {}; // { nickname: { id, avatar } }
 let publicHistory = [];
 let privateHistories = {}; 
 
@@ -19,10 +19,19 @@ io.on('connection', (socket) => {
         socket.emit('load public', publicHistory);
     });
 
+    // Validar si un usuario existe para agregarlo
+    socket.on('check user', (target) => {
+        if (users[target]) {
+            socket.emit('user exists', { user: target, avatar: users[target].avatar });
+        } else {
+            socket.emit('user not found', target);
+        }
+    });
+
     socket.on('send public', (msg) => {
         const data = { ...msg, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
         publicHistory.push(data);
-        if (publicHistory.length > 100) publicHistory.shift();
+        if (publicHistory.length > 50) publicHistory.shift();
         io.emit('broadcast public', data);
     });
 
@@ -42,10 +51,11 @@ io.on('connection', (socket) => {
             from: socket.nickname,
             text: data.text,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            avatar: data.avatar // Guardamos la foto en el mensaje
+            avatar: data.avatar
         };
 
         privateHistories[room].push(msgPayload);
+        
         const target = users[data.to];
         if (target) {
             io.to(target.id).emit('private message', msgPayload);
@@ -61,4 +71,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('SayChat Pro Online'));
+server.listen(PORT, () => console.log('SayChat V3 Ready'));
