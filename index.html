@@ -7,35 +7,52 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <audio id="notif-sound" src="whatsapp-assobio-oficial-2014-whistle.mp3" preload="auto"></audio>
+
     <div id="welcome-modal" class="modal">
         <div class="modal-content">
-            <h2>SayChat</h2>
+            <h2 style="color:var(--p)">SayChat</h2>
             <div class="setup-avatar">
-                <img id="preview-img" src="https://api.dicebear.com/7.x/pixel-art/svg?seed=Said" class="avatar-large">
-                <button onclick="document.getElementById('file-init').click()">Subir Foto</button>
-                <input type="file" id="file-init" hidden accept="image/*" onchange="previewFile(this)">
+                <img id="preview-img" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Said" class="avatar-large">
+                <button class="btn-subtle" onclick="document.getElementById('file-init').click()">Cambiar Foto</button>
+                <input type="file" id="file-init" hidden accept="image/*" onchange="previewFile(this, 'preview-img')">
             </div>
-            <input type="text" id="username-init" placeholder="Tu usuario (ej: said26)" maxlength="15">
-            <button id="start-btn" onclick="finishSetup()">Empezar</button>
+            <input type="text" id="username-init" placeholder="@username (para agregarte)" maxlength="12">
+            <input type="text" id="nickname-init" placeholder="Tu nombre público (nickname)" maxlength="20">
+            <button class="btn-main" onclick="finishSetup()">Crear Cuenta</button>
         </div>
     </div>
 
     <div id="main-app" style="display:none">
         <aside id="sidebar">
-            <header class="user-header">
-                <img id="my-avatar-img" src="" class="avatar">
-                <span id="my-name"></span>
+            <header class="user-profile-bar">
+                <div class="profile-info" onclick="toggleEditProfile()">
+                    <img id="my-avatar-img" src="" class="avatar clickable">
+                    <div class="names">
+                        <strong id="my-nickname-display"></strong>
+                        <small id="my-username-display"></small>
+                    </div>
+                </div>
             </header>
-            <div class="search-container">
-                <input type="text" id="add-contact-input" placeholder="Agregar @user online...">
+            
+            <div id="edit-profile" class="edit-panel" style="display:none">
+                <input type="text" id="new-nickname" placeholder="Nuevo nickname">
+                <button onclick="updateProfile()">Guardar</button>
+            </div>
+
+            <div class="search-box">
+                <input type="text" id="add-contact-input" placeholder="Agregar @username...">
                 <button onclick="addContact()">+</button>
             </div>
+
             <div id="contact-list"></div>
         </aside>
 
         <main id="chat-area">
             <header id="chat-header">
-                <h3 id="current-chat-title">Chat Global</h3>
+                <div class="header-info">
+                    <h3 id="current-chat-title">Chat Global</h3>
+                </div>
             </header>
             <div id="messages-container"></div>
             <form id="chat-form">
@@ -48,141 +65,155 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        let currentUser = localStorage.getItem('say_user');
-        let currentAvatar = localStorage.getItem('say_avatar');
-        let activeChat = 'public';
-        let myContacts = JSON.parse(localStorage.getItem('say_contacts_v2') || '{}'); // {nick: avatar}
-        let unread = {};
+        const state = {
+            user: localStorage.getItem('s_user'),
+            nick: localStorage.getItem('s_nick'),
+            avatar: localStorage.getItem('s_avatar'),
+            active: 'public',
+            contacts: JSON.parse(localStorage.getItem('s_contacts') || '{}'),
+            unread: {}
+        };
 
-        window.onload = () => { if (!currentUser) document.getElementById('welcome-modal').style.display = 'flex'; else startApp(); };
+        window.onload = () => {
+            if (!state.user) document.getElementById('welcome-modal').style.display = 'flex';
+            else startApp();
+        };
 
-        function previewFile(input) {
+        function previewFile(input, targetId) {
             const reader = new FileReader();
-            reader.onload = e => document.getElementById('preview-img').src = e.target.result;
+            reader.onload = e => document.getElementById(targetId).src = e.target.result;
             reader.readAsDataURL(input.files[0]);
         }
 
         function finishSetup() {
-            const name = document.getElementById('username-init').value.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
-            if (name.length < 3) return alert("Usuario inválido");
-            currentUser = name;
-            currentAvatar = document.getElementById('preview-img').src;
-            localStorage.setItem('say_user', currentUser);
-            localStorage.setItem('say_avatar', currentAvatar);
+            const u = document.getElementById('username-init').value.toLowerCase().trim();
+            const n = document.getElementById('nickname-init').value.trim();
+            const a = document.getElementById('preview-img').src;
+            if (u.length < 3 || n.length < 2) return alert("Completa los datos correctamente");
+            
+            state.user = u; state.nick = n; state.avatar = a;
+            localStorage.setItem('s_user', u); localStorage.setItem('s_nick', n); localStorage.setItem('s_avatar', a);
             document.getElementById('welcome-modal').style.display = 'none';
             startApp();
         }
 
         function startApp() {
             document.getElementById('main-app').style.display = 'flex';
-            document.getElementById('my-name').innerText = currentUser;
-            document.getElementById('my-avatar-img').src = currentAvatar;
-            socket.emit('register', { user: currentUser, avatar: currentAvatar });
+            updateUIProfile();
+            socket.emit('register', { username: state.user, nickname: state.nick, avatar: state.avatar });
             selectChat('public');
         }
 
-        // AGREGAR CONTACTO VALIDANDO QUE EXISTA
+        function updateUIProfile() {
+            document.getElementById('my-nickname-display').innerText = state.nick;
+            document.getElementById('my-username-display').innerText = '@' + state.user;
+            document.getElementById('my-avatar-img').src = state.avatar;
+        }
+
+        function toggleEditProfile() {
+            const p = document.getElementById('edit-profile');
+            p.style.display = p.style.display === 'none' ? 'flex' : 'none';
+        }
+
+        function updateProfile() {
+            const newNick = document.getElementById('new-nickname').value.trim();
+            if (newNick) {
+                state.nick = newNick;
+                localStorage.setItem('s_nick', newNick);
+                updateUIProfile();
+                socket.emit('update profile', { nickname: state.nick, avatar: state.avatar });
+                toggleEditProfile();
+            }
+        }
+
         function addContact() {
-            const user = document.getElementById('add-contact-input').value.toLowerCase().trim();
-            if (user && user !== currentUser) socket.emit('check user', user);
+            const target = document.getElementById('add-contact-input').value.toLowerCase().trim();
+            if (target && target !== state.user) socket.emit('check user', target);
             document.getElementById('add-contact-input').value = '';
         }
 
-        socket.on('user exists', (data) => {
-            myContacts[data.user] = data.avatar;
-            localStorage.setItem('say_contacts_v2', JSON.stringify(myContacts));
+        socket.on('user exists', data => {
+            state.contacts[data.username] = { nick: data.nickname, avatar: data.avatar };
+            localStorage.setItem('s_contacts', JSON.stringify(state.contacts));
             updateContactList();
-            alert(`@${data.user} agregado!`);
         });
 
-        socket.on('user not found', (user) => alert(`El usuario @${user} no está conectado.`));
-
         function selectChat(target) {
-            activeChat = target;
-            unread[target] = 0;
+            state.active = target;
+            state.unread[target] = 0;
             document.getElementById('current-chat-title').innerText = target === 'public' ? 'Chat Global' : `@${target}`;
-            document.getElementById('messages-container').innerHTML = ''; // Limpiar para recargar
-            
+            document.getElementById('messages-container').innerHTML = '';
             if (target === 'public') socket.emit('load public');
             else socket.emit('get private history', target);
             updateContactList();
         }
 
-        const form = document.getElementById('chat-form');
-        form.addEventListener('submit', (e) => {
+        document.getElementById('chat-form').onsubmit = (e) => {
             e.preventDefault();
-            const text = document.getElementById('msg-input').value;
-            if (!text) return;
-            const payload = { from: currentUser, text, avatar: currentAvatar };
+            const input = document.getElementById('msg-input');
+            if (!input.value) return;
 
-            if (activeChat === 'public') socket.emit('send public', payload);
+            const msg = { from: state.user, nickname: state.nick, text: input.value, avatar: state.avatar };
+            if (state.active === 'public') socket.emit('send public', msg);
             else {
-                socket.emit('send private', { to: activeChat, text, avatar: currentAvatar });
-                renderMessage({ ...payload, time: 'enviado' });
+                socket.emit('send private', { to: state.active, ...msg });
+                renderMessage({ ...msg, time: 'visto' }); // Insta-render
             }
-            document.getElementById('msg-input').value = '';
+            input.value = '';
+        };
+
+        socket.on('broadcast public', data => {
+            if (state.active === 'public') renderMessage(data);
+            else updateUnread('public');
         });
 
-        socket.on('broadcast public', (data) => {
-            if (activeChat === 'public') renderMessage(data);
-            else { unread['public'] = (unread['public'] || 0) + 1; updateContactList(); }
-        });
-
-        socket.on('private message', (data) => {
-            if (!myContacts[data.from]) {
-                myContacts[data.from] = data.avatar;
-                localStorage.setItem('say_contacts_v2', JSON.stringify(myContacts));
+        socket.on('private message', data => {
+            if (!state.contacts[data.from]) {
+                state.contacts[data.from] = { nick: data.nickname, avatar: data.avatar };
+                localStorage.setItem('s_contacts', JSON.stringify(state.contacts));
             }
-            if (activeChat === data.from) renderMessage(data);
-            else { unread[data.from] = (unread[data.from] || 0) + 1; updateContactList(); }
-        });
-
-        socket.on('load private', data => { 
-            document.getElementById('messages-container').innerHTML = '';
-            data.history.forEach(renderMessage); 
-        });
-        
-        socket.on('load public', history => { 
-            if(activeChat === 'public') {
-                document.getElementById('messages-container').innerHTML = '';
-                history.forEach(renderMessage); 
+            if (state.active === data.from) renderMessage(data);
+            else {
+                updateUnread(data.from);
+                document.getElementById('notif-sound').play();
             }
         });
 
-        function renderMessage(data) {
-            const container = document.getElementById('messages-container');
-            const isMine = data.from === currentUser;
+        socket.on('load private', d => d.history.forEach(renderMessage));
+        socket.on('load public', h => h.forEach(renderMessage));
+
+        function renderMessage(d) {
+            const c = document.getElementById('messages-container');
+            const mine = d.from === state.user;
             const div = document.createElement('div');
-            div.className = `msg-row ${isMine ? 'mine' : ''}`;
+            div.className = `msg-row ${mine ? 'mine' : ''}`;
             div.innerHTML = `
-                ${!isMine ? `<img src="${data.avatar}" class="msg-avatar">` : ''}
+                ${!mine ? `<img src="${d.avatar}" class="msg-avatar">` : ''}
                 <div class="msg-bubble">
-                    <small>${data.from}</small>
-                    <p>${data.text}</p>
-                    <span class="time">${data.time || ''}</span>
+                    ${!mine ? `<small>${d.nickname}</small>` : ''}
+                    <p>${d.text}</p>
+                    <span class="time">${d.time || ''}</span>
                 </div>
             `;
-            container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
+            c.appendChild(div);
+            c.scrollTop = c.scrollHeight;
         }
 
+        function updateUnread(u) { state.unread[u] = (state.unread[u] || 0) + 1; updateContactList(); }
+
         function updateContactList() {
-            const list = document.getElementById('contact-list');
-            list.innerHTML = `
-                <div class="contact-item ${activeChat === 'public' ? 'active' : ''}" onclick="selectChat('public')">
-                    <img src="https://cdn-icons-png.flaticon.com/512/4433/4433449.png" class="avatar">
-                    <div class="info"><span>Chat Global</span></div>
-                    ${unread['public'] > 0 ? `<span class="badge">${unread['public']}</span>` : ''}
-                </div>
-            `;
-            Object.keys(myContacts).forEach(c => {
-                list.innerHTML += `
-                    <div class="contact-item ${activeChat === c ? 'active' : ''}" onclick="selectChat('${c}')">
-                        <img src="${myContacts[c]}" class="avatar">
-                        <div class="info"><span>${c}</span></div>
-                        ${unread[c] > 0 ? `<span class="badge">${unread[c]}</span>` : ''}
-                    </div>
-                `;
+            const l = document.getElementById('contact-list');
+            l.innerHTML = `<div class="contact-item ${state.active==='public'?'active':''}" onclick="selectChat('public')">
+                <img src="https://cdn-icons-png.flaticon.com/512/4433/4433449.png" class="avatar">
+                <div class="info"><strong>Chat Global</strong></div>
+                ${state.unread['public']?`<span class="badge">${state.unread['public']}</span>`:''}
+            </div>`;
+            Object.keys(state.contacts).forEach(u => {
+                l.innerHTML += `<div class="contact-item ${state.active===u?'active':''}" onclick="selectChat('${u}')">
+                    <img src="${state.contacts[u].avatar}" class="avatar">
+                    <div class="info"><strong>${state.contacts[u].nick}</strong><br><small>@${u}</small></div>
+                    ${state.unread[u]?`<span class="badge">${state.unread[u]}</span>`:''}
+                </div>`;
             });
         }
     </script>
