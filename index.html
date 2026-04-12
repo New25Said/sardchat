@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Say Chat 2 💜</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <h1>Say Chat 2 💜</h1>
+  <input id="nickname" placeholder="Tu nickname">
+  <button onclick="entrar()">Entrar</button>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none;">
+
+  <!-- HEADER -->
+  <div id="header">
+    💬 Chat Global
+  </div>
+
+  <!-- MENSAJES -->
+  <div id="chat"></div>
+
+  <!-- INPUT -->
+  <div id="inputArea">
+    <input id="msg" placeholder="Mensaje">
+    <button onclick="enviar()">➤</button>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
