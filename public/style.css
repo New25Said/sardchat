@@ -1,0 +1,83 @@
+body {
+  margin: 0;
+  font-family: Arial;
+  background: #0b141a;
+  color: white;
+}
+
+/* LOGIN */
+#login {
+  text-align: center;
+  margin-top: 150px;
+}
+
+#login input {
+  padding: 12px;
+  border-radius: 20px;
+  border: none;
+}
+
+#login button {
+  padding: 10px 20px;
+  border-radius: 20px;
+  background: #25d366;
+  border: none;
+  color: white;
+}
+
+/* HEADER */
+#header {
+  background: #202c33;
+  padding: 15px;
+  font-weight: bold;
+}
+
+/* CHAT */
+#chat {
+  height: 75vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+}
+
+/* MENSAJES */
+.msg {
+  max-width: 65%;
+  padding: 10px;
+  border-radius: 10px;
+  margin: 5px;
+}
+
+.otros {
+  background: #202c33;
+  align-self: flex-start;
+}
+
+.tuyo {
+  background: #005c4b;
+  align-self: flex-end;
+}
+
+/* INPUT */
+#inputArea {
+  display: flex;
+  padding: 10px;
+  background: #202c33;
+}
+
+#inputArea input {
+  flex: 1;
+  padding: 12px;
+  border-radius: 20px;
+  border: none;
+}
+
+#inputArea button {
+  margin-left: 10px;
+  border-radius: 50%;
+  width: 45px;
+  background: #25d366;
+  border: none;
+  color: white;
+}
