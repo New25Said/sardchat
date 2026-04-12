@@ -7,18 +7,18 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <audio id="whistle" src="whatsapp-assobio-oficial-2014-whistle.mp3"></audio>
+    <audio id="whistle" src="whatsapp-assobio-oficial-2014-whistle.mp3" preload="auto"></audio>
 
     <div id="setup" class="screen">
         <div class="card">
-            <h1 style="color:var(--p)">SayChat</h1>
+            <h1>SayChat</h1>
             <div class="profile-pick">
                 <img id="setup-img" src="perfil.png" class="big-a">
                 <input type="file" id="f-in" hidden onchange="prev(this)">
                 <button onclick="document.getElementById('f-in').click()">Elegir Foto</button>
             </div>
-            <input type="text" id="setup-u" placeholder="@username único">
-            <input type="text" id="setup-n" placeholder="Nickname (Nombre)">
+            <input type="text" id="setup-u" placeholder="@username (para agregarte)">
+            <input type="text" id="setup-n" placeholder="Nickname (nombre público)">
             <button class="btn-p" onclick="entrar()">ENTRAR</button>
         </div>
     </div>
@@ -63,7 +63,7 @@
         const socket = io();
         let my = { u: localStorage.getItem('s_u'), n: localStorage.getItem('s_n'), a: localStorage.getItem('s_a') || 'perfil.png' };
         let active = 'Global';
-        let chats = { 'Global': [] }; // Persistencia de mensajes en esta sesión
+        let chats = { 'Global': [] }; 
         let contacts = JSON.parse(localStorage.getItem('s_contacts') || '{}');
         let onlineUsers = {};
 
@@ -76,16 +76,15 @@
         window.onload = () => { if(my.u) startApp(); else document.getElementById('setup').style.display='flex'; };
 
         function entrar() {
-            my.u = document.getElementById('setup-u').value.toLowerCase().replace(/\s/g,'');
-            my.n = document.getElementById('setup-n').value;
+            my.u = document.getElementById('setup-u').value.toLowerCase().replace(/[^a-z0-9]/g,'');
+            my.n = document.getElementById('setup-n').value.trim();
             my.a = document.getElementById('setup-img').src;
-            if(my.u.length < 3) return alert("User muy corto");
+            if(my.u.length < 3) return alert("Usuario muy corto");
             localStorage.setItem('s_u', my.u); localStorage.setItem('s_n', my.n); localStorage.setItem('s_a', my.a);
             location.reload();
         }
 
         function startApp() {
-            document.getElementById('setup').style.display='none';
             document.getElementById('app').style.display='flex';
             document.getElementById('m-img').src = my.a;
             document.getElementById('m-nick').innerText = my.n;
@@ -110,7 +109,7 @@
         function add() {
             const t = document.getElementById('t-add').value.toLowerCase().trim();
             if(t && t !== my.u) {
-                contacts[t] = t; // Guardamos el username
+                contacts[t] = t;
                 localStorage.setItem('s_contacts', JSON.stringify(contacts));
                 renderContacts();
             }
@@ -119,65 +118,66 @@
 
         function openChat(t) {
             active = t;
-            document.getElementById('chat-title').innerText = t === 'Global' ? 'Global' : '@'+t;
-            renderMsgs();
+            document.getElementById('chat-title').innerText = t === 'Global' ? 'Chat Global' : `@${t}`;
+            document.getElementById('msg-box').innerHTML = '';
+            if(t === 'Global') socket.emit('get_public');
+            else socket.emit('get_private_history', t);
+            renderContacts();
         }
 
         document.getElementById('send-f').onsubmit = e => {
             e.preventDefault();
             const val = document.getElementById('msg-in').value;
             if(!val) return;
-            const m = { from: my.u, n: my.n, a: my.a, text: val };
+            const m = { from: my.u, n: my.n, a: my.a, text: val, time: 'visto' };
             
             if(active === 'Global') socket.emit('msg_public', m);
             else {
                 if(!chats[active]) chats[active] = [];
-                const pm = { ...m, time: 'visto' };
-                chats[active].push(pm);
+                chats[active].push(m);
                 socket.emit('msg_private', { to: active, text: val });
-                renderMsgs();
+                renderMsg(m); // Carga instantánea
             }
             document.getElementById('msg-in').value = '';
         };
 
-        socket.on('sync_users', data => onlineUsers = data);
-        socket.on('rcv_public', m => { chats['Global'].push(m); if(active==='Global') renderMsgs(); });
+        socket.on('sync_users', data => { onlineUsers = data; renderContacts(); });
+        socket.on('rcv_public', m => { chats['Global'].push(m); if(active==='Global') renderMsg(m); });
         socket.on('rcv_private', m => {
             if(!chats[m.from]) chats[m.from] = [];
             chats[m.from].push(m);
-            if(active === m.from) renderMsgs();
+            if(active === m.from) renderMsg(m);
             else document.getElementById('whistle').play();
         });
 
-        function renderMsgs() {
-            const box = document.getElementById('msg-box');
-            box.innerHTML = '';
-            (chats[active] || []).forEach(m => {
-                const isMe = m.from === my.u;
-                // Buscamos datos frescos de onlineUsers para fotos/nicks actualizados
-                const senderNick = onlineUsers[m.from]?.nick || m.n || m.from;
-                const senderAvatar = onlineUsers[m.from]?.avatar || m.a || 'perfil.png';
+        socket.on('load_private', d => d.history.forEach(renderMsg));
+        socket.on('init_public', h => h.forEach(renderMsg));
 
-                const div = document.createElement('div');
-                div.className = `row ${isMe ? 'me' : 'ot'}`;
-                div.innerHTML = `
-                    <div class="bub">
-                        <small class="nick">${senderNick}</small>
-                        <p>${m.text}</p>
-                        <div class="foot">
-                            <span class="tag">@${m.from}</span>
-                            <span class="time">${m.time || ''}</span>
-                        </div>
+        function renderMsg(m) {
+            const box = document.getElementById('msg-box');
+            const isMe = m.from === my.u;
+            const sNick = isMe ? my.n : (onlineUsers[m.from]?.nick || m.n || m.from);
+            const sAvatar = isMe ? my.a : (onlineUsers[m.from]?.avatar || m.a || 'perfil.png');
+
+            const div = document.createElement('div');
+            div.className = `row ${isMe ? 'me' : 'ot'}`;
+            div.innerHTML = `
+                <div class="bub">
+                    <small class="nick">${sNick}</small>
+                    <p>${m.text}</p>
+                    <div class="foot">
+                        <span class="tag">@${m.from}</span>
+                        <span class="time">${m.time || ''}</span>
                     </div>
-                `;
-                box.appendChild(div);
-            });
+                </div>
+            `;
+            box.appendChild(div);
             box.scrollTop = box.scrollHeight;
         }
 
         function renderContacts() {
             const l = document.getElementById('contact-list');
-            l.innerHTML = `<div class="con-item" onclick="openChat('Global')"><b>Chat Global</b></div>`;
+            l.innerHTML = `<div class="con-item ${active==='Global'?'act':''}" onclick="openChat('Global')"><b>Chat Global</b></div>`;
             Object.keys(contacts).forEach(u => {
                 const info = onlineUsers[u] || { nick: u, avatar: 'perfil.png' };
                 l.innerHTML += `
@@ -188,7 +188,6 @@
                 `;
             });
         }
-        setInterval(renderContacts, 3000); // Auto-actualizar lista cada 3 seg
     </script>
 </body>
 </html>
