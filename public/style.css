@@ -1,29 +1,81 @@
 body {
-  font-family: Arial;
+  margin: 0;
+  font-family: Arial, sans-serif;
   background: #1a0126;
   color: white;
-  text-align: center;
 }
 
-h1 {
-  color: #c77dff;
+/* 🧭 MENU */
+#menu {
+  display: flex;
+  justify-content: space-around;
+  background: #240046;
+  padding: 10px;
+  border-bottom: 2px solid #7b2cbf;
 }
 
-#login {
-  margin-top: 50px;
+#menu button {
+  background: #7b2cbf;
+  border: none;
+  padding: 10px;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
 }
 
+#menu button:hover {
+  background: #9d4edd;
+}
+
+/* 📱 PANTALLAS */
+.pantalla {
+  padding: 10px;
+}
+
+/* 💬 MENSAJES */
+#mensajes_global,
+#mensajes_privado,
+#mensajes_grupo {
+  height: 300px;
+  overflow-y: auto;
+  background: #240046;
+  padding: 10px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+/* burbujas */
+#mensajes_global div,
+#mensajes_privado div,
+#mensajes_grupo div {
+  background: #3c096c;
+  margin: 5px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  text-align: left;
+  max-width: 70%;
+}
+
+/* mensajes propios */
+#mensajes_global div:contains(":"), 
+#mensajes_privado div:contains(":"), 
+#mensajes_grupo div:contains(":") {
+  margin-left: auto;
+}
+
+/* 🧾 INPUTS */
 input {
   padding: 10px;
   border-radius: 8px;
   border: none;
   margin: 5px;
+  width: 60%;
 }
 
 button {
   padding: 10px;
-  border: none;
   border-radius: 8px;
+  border: none;
   background: #7b2cbf;
   color: white;
   cursor: pointer;
@@ -33,27 +85,25 @@ button:hover {
   background: #9d4edd;
 }
 
-#chat {
-  margin-top: 20px;
+/* 🔐 LOGIN */
+#login {
+  text-align: center;
+  margin-top: 50px;
 }
 
-#mensajes {
-  height: 300px;
-  overflow-y: scroll;
-  border: 1px solid #7b2cbf;
-  margin: 10px;
-  padding: 10px;
-  background: #240046;
+/* ⚙️ CONFIG */
+#config input {
+  display: block;
+  margin: 10px auto;
 }
 
-.mensaje {
-  background: #3c096c;
-  margin: 5px;
-  padding: 8px;
-  border-radius: 10px;
-  text-align: left;
-}
+/* 📱 RESPONSIVE */
+@media (max-width: 600px) {
+  input {
+    width: 80%;
+  }
 
-#barra {
-  margin-top: 10px;
+  #menu {
+    flex-wrap: wrap;
+  }
 }
