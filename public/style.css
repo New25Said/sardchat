@@ -1,59 +1,71 @@
 body {
   margin: 0;
-  font-family: Arial;
-  background: #0b141a;
-  color: white;
+  font-family: "Segoe UI", Arial;
+  background: #111b21;
+  color: #e9edef;
 }
 
-/* LOGIN */
-#login {
-  text-align: center;
-  margin-top: 150px;
+/* APP */
+#app {
+  display: flex;
+  height: 100vh;
 }
 
-#login input {
-  padding: 12px;
-  border-radius: 20px;
-  border: none;
+/* SIDEBAR (fake como WhatsApp) */
+#sidebar {
+  width: 30%;
+  background: #202c33;
+  border-right: 1px solid #2a3942;
+  display: flex;
+  flex-direction: column;
 }
 
-#login button {
-  padding: 10px 20px;
-  border-radius: 20px;
-  background: #25d366;
-  border: none;
-  color: white;
+#sidebar h2 {
+  padding: 15px;
+  margin: 0;
+  background: #2a3942;
+}
+
+/* CHAT AREA */
+#chatArea {
+  width: 70%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* HEADER */
 #header {
   background: #202c33;
   padding: 15px;
-  font-weight: bold;
+  border-bottom: 1px solid #2a3942;
 }
 
 /* CHAT */
 #chat {
-  height: 75vh;
+  flex: 1;
   overflow-y: auto;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  padding: 10px;
 }
 
 /* MENSAJES */
 .msg {
-  max-width: 65%;
-  padding: 10px;
-  border-radius: 10px;
-  margin: 5px;
+  max-width: 60%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin: 5px 0;
+  font-size: 14px;
+  position: relative;
 }
 
+/* OTROS */
 .otros {
   background: #202c33;
   align-self: flex-start;
 }
 
+/* TU MENSAJE */
 .tuyo {
   background: #005c4b;
   align-self: flex-end;
@@ -71,13 +83,45 @@ body {
   padding: 12px;
   border-radius: 20px;
   border: none;
+  background: #2a3942;
+  color: white;
 }
 
 #inputArea button {
   margin-left: 10px;
   border-radius: 50%;
   width: 45px;
-  background: #25d366;
+  background: #00a884;
+  border: none;
+  color: white;
+  font-size: 18px;
+}
+
+/* LOGIN */
+#login {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: #111b21;
+}
+
+#login h1 {
+  margin-bottom: 20px;
+}
+
+#login input {
+  padding: 12px;
+  border-radius: 20px;
+  border: none;
+  margin-bottom: 10px;
+}
+
+#login button {
+  padding: 10px 20px;
+  border-radius: 20px;
+  background: #00a884;
   border: none;
   color: white;
 }
