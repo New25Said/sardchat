@@ -1,6 +1,7 @@
 {
-  "name": "chat-morado",
+  "name": "chat-morado-pro",
   "version": "1.0.0",
+  "description": "Clon tipo WhatsApp",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
