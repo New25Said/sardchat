@@ -3,20 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BioChat 26</title>
+    <title>SayChat</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="main-app">
         <aside id="sidebar">
             <header class="user-header">
-                <img id="my-avatar-img" src="" class="avatar">
+                <div class="avatar-container">
+                    <img id="my-avatar-img" src="" class="avatar clickable" onclick="triggerAvatarUpload()" title="Haz clic para cambiar avatar">
+                    <input type="file" id="avatar-input" accept="image/*" style="display:none" onchange="uploadAvatar(this)">
+                </div>
                 <span id="my-name"></span>
             </header>
             
-            <div class="tabs">
-                <button onclick="showTab('public')" id="btn-public" class="active">Global</button>
-                <button onclick="showTab('private')" id="btn-private">Privados</button>
+            <div class="search-container">
+                <input type="text" id="add-contact-input" placeholder="Buscar @user (sin espacios)...">
+                <button onclick="addContact()">+</button>
             </div>
 
             <div id="contact-list">
@@ -25,14 +28,17 @@
 
         <main id="chat-area">
             <header id="chat-header">
+                <img id="chat-header-avatar" src="https://cdn-icons-png.flaticon.com/512/4433/4433449.png" class="avatar hidden">
                 <h3 id="current-chat-title">Chat Global</h3>
             </header>
-
+            
             <div id="messages-container"></div>
-
+            
             <form id="chat-form">
                 <input type="text" id="msg-input" placeholder="Escribe un mensaje..." autocomplete="off">
-                <button type="submit">➤</button>
+                <button type="submit" id="send-btn">
+                    <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z"></path></svg>
+                </button>
             </form>
         </main>
     </div>
@@ -40,140 +46,187 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        let currentUser = localStorage.getItem('chat_user');
-        let currentAvatar = localStorage.getItem('chat_avatar') || `https://api.dicebear.com/7.x/bottts/svg?seed=${Math.random()}`;
-        let activeChat = 'public'; // 'public' o el nombre de un usuario
-        let unread = {}; // Para las bolitas rojas
-        let privateMessages = {}; // Guardar chats privados localmente {user: [msgs]}
+        let currentUser = localStorage.getItem('saychat_user');
+        // Avatar por defecto si no hay uno subido
+        let currentAvatar = localStorage.getItem('saychat_avatar') || `https://api.dicebear.com/7.x/pixel-art/svg?seed=${Math.random()}`;
+        let activeChat = 'public';
+        let myContacts = JSON.parse(localStorage.getItem('saychat_contacts') || '[]');
+        let unread = {};
 
-        // Validación y Registro
+        // Login inicial
         if (!currentUser) {
-            currentUser = prompt("Nickname (solo minúsculas, sin espacios):").toLowerCase().replace(/\s+/g, '');
-            localStorage.setItem('chat_user', currentUser);
-            localStorage.setItem('chat_avatar', currentAvatar);
+            currentUser = prompt("Tu usuario SayChat (minúsculas, sin espacios):").toLowerCase().replace(/[^a-z0-9]/g, '');
+            localStorage.setItem('saychat_user', currentUser);
         }
         document.getElementById('my-name').innerText = currentUser;
         document.getElementById('my-avatar-img').src = currentAvatar;
 
         socket.emit('register', { user: currentUser, avatar: currentAvatar });
 
-        // Navegación
-        function showTab(type) {
-            document.getElementById('btn-public').classList.toggle('active', type === 'public');
-            document.getElementById('btn-private').classList.toggle('active', type === 'private');
-            if (type === 'public') selectChat('public');
+        // Lógica de Subida de Avatar
+        function triggerAvatarUpload() {
+            document.getElementById('avatar-input').click();
+        }
+
+        function uploadAvatar(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64Image = e.target.result;
+                // Validar tamaño aproximado (evitar saturar el server)
+                if (base64Image.length > 500000) {
+                    alert("Imagen demasiado grande. Usa una menor a 500KB.");
+                    return;
+                }
+                currentAvatar = base64Image;
+                localStorage.setItem('saychat_avatar', currentAvatar);
+                document.getElementById('my-avatar-img').src = currentAvatar;
+                
+                // Actualizar en el servidor inmediatamente
+                socket.emit('register', { user: currentUser, avatar: currentAvatar });
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function addContact() {
+            const input = document.getElementById('add-contact-input');
+            const userToAdd = input.value.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+            if (userToAdd && userToAdd !== currentUser && !myContacts.includes(userToAdd)) {
+                myContacts.push(userToAdd);
+                localStorage.setItem('saychat_contacts', JSON.stringify(myContacts));
+                updateContactList();
+                input.value = '';
+            }
         }
 
         function selectChat(target) {
             activeChat = target;
             unread[target] = 0;
-            document.getElementById('current-chat-title').innerText = target === 'public' ? 'Chat Global' : `Chat con ${target}`;
-            renderMessages();
+            const headerAvatar = document.getElementById('chat-header-avatar');
+            
+            if (target === 'public') {
+                document.getElementById('current-chat-title').innerText = 'Chat Global';
+                headerAvatar.classList.add('hidden');
+                socket.emit('load public'); 
+            } else {
+                document.getElementById('current-chat-title').innerText = `@${target}`;
+                headerAvatar.src = `https://api.dicebear.com/7.x/pixel-art/svg?seed=${target}`;
+                headerAvatar.classList.remove('hidden');
+                socket.emit('get private history', target);
+            }
             updateContactList();
         }
 
-        // Lógica de Mensajes
         const form = document.getElementById('chat-form');
         form.addEventListener('submit', (e) => {
             e.preventDefault();
             const text = document.getElementById('msg-input').value;
             if (!text) return;
 
-            const msgData = { from: currentUser, text: text, avatar: currentAvatar };
-
+            const payload = { from: currentUser, text, avatar: currentAvatar };
             if (activeChat === 'public') {
-                socket.emit('send public', msgData);
+                socket.emit('send public', payload);
             } else {
-                if (!privateMessages[activeChat]) privateMessages[activeChat] = [];
-                const localMsg = { ...msgData, time: 'Ahora', to: activeChat };
-                privateMessages[activeChat].push(localMsg);
-                socket.emit('send private', { to: activeChat, text: text, avatar: currentAvatar });
-                renderMessages();
+                socket.emit('send private', { to: activeChat, text, avatar: currentAvatar });
+                renderMessage({ ...payload, time: '...' }, true);
             }
             document.getElementById('msg-input').value = '';
         });
 
         socket.on('broadcast public', (data) => {
-            if (!window.publicMsgs) window.publicMsgs = [];
-            window.publicMsgs.push(data);
-            if (activeChat !== 'public') unread['public'] = (unread['public'] || 0) + 1;
-            if (activeChat === 'public') renderMessages();
-            updateContactList();
+            if (activeChat === 'public') renderMessage(data);
+            else updateUnread('public');
         });
 
         socket.on('private message', (data) => {
-            if (!privateMessages[data.from]) privateMessages[data.from] = [];
-            privateMessages[data.from].push(data);
-            
-            if (activeChat !== data.from) {
-                unread[data.from] = (unread[data.from] || 0) + 1;
-                playNotification();
+            if (!myContacts.includes(data.from)) {
+                myContacts.push(data.from);
+                localStorage.setItem('saychat_contacts', JSON.stringify(myContacts));
             }
-            if (activeChat === data.from) renderMessages();
-            updateContactList();
+            if (activeChat === data.from) renderMessage(data);
+            else updateUnread(data.from);
+            playNotification();
         });
 
-        socket.on('update users', (users) => {
-            window.onlineUsers = users;
-            updateContactList();
-        });
-
-        function updateContactList() {
-            const list = document.getElementById('contact-list');
-            list.innerHTML = '';
-            
-            // Opción Chat Global siempre arriba
-            const pubDiv = createContactItem('Global', 'https://cdn-icons-png.flaticon.com/512/4433/4433449.png', 'public');
-            list.appendChild(pubDiv);
-
-            // Usuarios online
-            Object.keys(window.onlineUsers || {}).forEach(user => {
-                if (user !== currentUser) {
-                    const div = createContactItem(user, window.onlineUsers[user].avatar, user);
-                    list.appendChild(div);
-                }
-            });
-        }
-
-        function createContactItem(name, img, id) {
-            const div = document.createElement('div');
-            div.className = `contact-item ${activeChat === id ? 'active' : ''}`;
-            div.onclick = () => selectChat(id);
-            const count = unread[id] > 0 ? `<span class="badge">${unread[id]}</span>` : '';
-            div.innerHTML = `<img src="${img}" class="avatar"> <span>${name}</span> ${count}`;
-            return div;
-        }
-
-        function renderMessages() {
+        socket.on('load private', (data) => {
             const container = document.getElementById('messages-container');
             container.innerHTML = '';
-            const msgs = activeChat === 'public' ? (window.publicMsgs || []) : (privateMessages[activeChat] || []);
+            data.history.forEach(m => renderMessage(m));
+        });
+
+        socket.on('load public', (history) => {
+            if(activeChat === 'public') {
+                const container = document.getElementById('messages-container');
+                container.innerHTML = '';
+                history.forEach(m => renderMessage(m));
+            }
+        });
+
+        function renderMessage(data, isLocal = false) {
+            const container = document.getElementById('messages-container');
+            const div = document.createElement('div');
+            const isMine = data.from === currentUser;
+            div.className = `msg-row ${isMine ? 'mine' : ''}`;
             
-            msgs.forEach(m => {
-                const div = document.createElement('div');
-                div.className = `msg-row ${m.from === currentUser ? 'mine' : ''}`;
-                div.innerHTML = `
-                    <img src="${m.avatar}" class="msg-avatar">
-                    <div class="msg-bubble">
-                        <small>${m.from}</small>
-                        <p>${m.text}</p>
-                        <span class="time">${m.time || ''}</span>
-                    </div>
-                `;
-                container.appendChild(div);
-            });
+            // Estilo WA: avatar solo si no es mío
+            const avatarHtml = !isMine ? `<img src="${data.avatar}" class="msg-avatar">` : '';
+            
+            div.innerHTML = `
+                ${avatarHtml}
+                <div class="msg-bubble">
+                    ${!isMine ? `<small>${data.from}</small>` : ''}
+                    <p>${data.text}</p>
+                    <span class="time">${data.time}</span>
+                </div>
+            `;
+            container.appendChild(div);
             container.scrollTop = container.scrollHeight;
         }
 
-        function playNotification() {
-            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3');
-            audio.play().catch(() => {});
-            if (Notification.permission === "granted") {
-                new Notification("Nuevo mensaje en BioChat");
-            }
+        function updateUnread(user) {
+            unread[user] = (unread[user] || 0) + 1;
+            updateContactList();
         }
 
-        if (Notification.permission !== "denied") Notification.requestPermission();
+        function updateContactList() {
+            const list = document.getElementById('contact-list');
+            const globalActive = activeChat === 'public' ? 'active' : '';
+            const globalBadge = unread['public'] > 0 ? `<span class="badge">${unread['public']}</span>` : '';
+            
+            let html = `
+                <div class="contact-item ${globalActive}" onclick="selectChat('public')">
+                    <img src="https://cdn-icons-png.flaticon.com/512/4433/4433449.png" class="avatar">
+                    <div class="contact-info">
+                        <span>Chat Global</span>
+                    </div>
+                    ${globalBadge}
+                </div>
+            `;
+
+            myContacts.forEach(contact => {
+                const isActive = activeChat === contact ? 'active' : '';
+                const badge = unread[contact] > 0 ? `<span class="badge">${unread[contact]}</span>` : '';
+                // Usamos PixelArt temporalmente para contactos hasta que se sincronicen sus avatars reales
+                html += `
+                    <div class="contact-item ${isActive}" onclick="selectChat('${contact}')">
+                        <img src="https://api.dicebear.com/7.x/pixel-art/svg?seed=${contact}" class="avatar">
+                        <div class="contact-info">
+                            <span>${contact}</span>
+                        </div>
+                        ${badge}
+                    </div>
+                `;
+            });
+            list.innerHTML = html;
+        }
+
+        function playNotification() {
+            new Audio('https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3').play().catch(()=>{});
+        }
+        
+        updateContactList();
     </script>
 </body>
 </html>
