@@ -7,9 +7,9 @@ const io = new Server(server);
 
 app.use(express.static(__dirname));
 
-let users = {}; // { nickname: { id, avatar } }
+let users = {}; 
 let publicHistory = [];
-let privateHistories = {}; // { "user1-user2": [msgs] }
+let privateHistories = {}; 
 
 io.on('connection', (socket) => {
     socket.on('register', (data) => {
@@ -22,7 +22,7 @@ io.on('connection', (socket) => {
     socket.on('send public', (msg) => {
         const data = { ...msg, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
         publicHistory.push(data);
-        if (publicHistory.length > 100) publicHistory.shift(); // Límite de seguridad
+        if (publicHistory.length > 100) publicHistory.shift();
         io.emit('broadcast public', data);
     });
 
@@ -42,12 +42,10 @@ io.on('connection', (socket) => {
             from: socket.nickname,
             text: data.text,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            avatar: data.avatar
+            avatar: data.avatar // Guardamos la foto en el mensaje
         };
 
         privateHistories[room].push(msgPayload);
-        if (privateHistories[room].length > 200) privateHistories[room].shift(); // Límite
-
         const target = users[data.to];
         if (target) {
             io.to(target.id).emit('private message', msgPayload);
@@ -63,4 +61,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('SayChat Server Online'));
+server.listen(PORT, () => console.log('SayChat Pro Online'));
