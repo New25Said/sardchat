@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Privado</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h3>Chat General</h3>
+        </header>
+        
+        <div id="chat-box"></div>
+
+        <form id="chat-form">
+            <input type="text" id="msg-input" placeholder="Escribe un mensaje..." autocomplete="off" required>
+            <button type="submit">Enviar</button>
+        </form>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let currentUser = localStorage.getItem('chat_username');
+
+        // Validación de usuario: solo minúsculas, sin espacios, sin símbolos
+        const validateUser = (name) => {
+            return /^[a-z0-9]+$/.test(name);
+        };
+
+        // Pedir nombre si no existe
+        while (!currentUser || !validateUser(currentUser)) {
+            let name = prompt("Introduce tu nombre de usuario (solo minúsculas y números, sin espacios):");
+            if (name) {
+                currentUser = name.toLowerCase().trim().replace(/\s+/g, '');
+                if (validateUser(currentUser)) {
+                    localStorage.setItem('chat_username', currentUser);
+                }
+            }
+        }
+
+        const chatBox = document.getElementById('chat-box');
+        const chatForm = document.getElementById('chat-form');
+        const msgInput = document.getElementById('msg-input');
+
+        const appendMessage = (data) => {
+            const div = document.createElement('div');
+            div.classList.add('message-row');
+            if (data.user === currentUser) div.classList.add('my-message');
+            
+            div.innerHTML = `
+                <div class="message-content">
+                    <span class="user-tag">${data.user}</span>
+                    <p>${data.text}</p>
+                    <span class="time-tag">${data.time}</span>
+                </div>
+            `;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        };
+
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (msgInput.value.trim()) {
+                socket.emit('send message', {
+                    user: currentUser,
+                    text: msgInput.value
+                });
+                msgInput.value = '';
+            }
+        });
+
+        socket.on('load history', (history) => {
+            chatBox.innerHTML = '';
+            history.forEach(appendMessage);
+        });
+
+        socket.on('broadcast message', (data) => {
+            appendMessage(data);
+        });
+    </script>
+</body>
+</html>
