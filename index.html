@@ -2,53 +2,111 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WineChat V2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WineChat Pro</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        * { box-sizing: border-box; }
-        body { margin: 0; background: #050505; color: #f0f0f0; font-family: sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            background-color: #0b0e11; 
+            color: #e9edef; 
+            font-family: 'Segoe UI', Helvetica, Arial, sans-serif; 
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
         .hidden { display: none !important; }
-        
-        /* Login */
-        #login-screen { display: flex; justify-content: center; align-items: center; height: 100vh; }
-        .login-box { background: #121212; padding: 30px; border-radius: 20px; border: 2px solid #7b1fa2; width: 90%; max-width: 350px; text-align: center; }
-        input[type="text"], input[type="file"] { width: 100%; padding: 12px; margin: 10px 0; background: #1e1e1e; border: 1px solid #4a148c; color: white; border-radius: 8px; }
-        button { background: #7b1fa2; color: white; border: none; padding: 12px; width: 100%; cursor: pointer; border-radius: 8px; font-weight: bold; font-size: 1rem; }
-        button:hover { background: #9c27b0; }
 
-        /* Chat */
-        #chat-screen { display: flex; flex-direction: column; height: 100vh; max-width: 700px; margin: 0 auto; background: #0a0a0a; border-left: 1px solid #222; border-right: 1px solid #222; }
-        header { background: #121212; padding: 15px; border-bottom: 1px solid #4a148c; text-align: center; color: #ba68c8; font-weight: bold; }
-        #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        /* Login Screen */
+        #login-screen { 
+            display: flex; justify-content: center; align-items: center; height: 100vh; 
+            background: linear-gradient(135deg, #0b0e11 0%, #2d0a4e 100%);
+        }
+        .login-box { 
+            background: #1f2c33; padding: 40px; border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; width: 90%; max-width: 400px;
+        }
+        .login-box h2 { color: #a855f7; margin-bottom: 20px; }
+        input[type="text"], input[type="file"] { 
+            width: 100%; padding: 12px; margin: 10px 0; background: #2a3942; 
+            border: 1px solid #3b4a54; color: white; border-radius: 8px; outline: none;
+        }
+        button { 
+            background: #7b1fa2; color: white; border: none; padding: 15px; 
+            width: 100%; cursor: pointer; border-radius: 8px; font-weight: bold; margin-top: 10px;
+        }
+
+        /* Chat Screen - Full Screen */
+        #chat-screen { 
+            display: flex; flex-direction: column; height: 100vh; width: 100vw; 
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); /* Pattern de WhatsApp */
+            background-blend-mode: overlay; background-color: #0b0e11;
+        }
+
+        header { 
+            background: #1f2c33; padding: 10px 20px; display: flex; align-items: center; 
+            border-bottom: 1px solid rgba(255,255,255,0.1); color: #e9edef; z-index: 10;
+        }
+
+        #messages { 
+            flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 8px;
+        }
+
+        /* Globos de texto tipo WhatsApp */
+        .msg-container { display: flex; width: 100%; margin-bottom: 4px; }
+        .msg-container.mine { justify-content: flex-end; }
+        .msg-container.others { justify-content: flex-start; }
+
+        .bubble { 
+            max-width: 75%; padding: 8px 12px; border-radius: 8px; position: relative; 
+            display: flex; flex-direction: column; box-shadow: 0 1px 1px rgba(0,0,0,0.2);
+        }
         
-        .msg { display: flex; align-items: flex-start; gap: 12px; background: #161616; padding: 12px; border-radius: 15px; border-left: 4px solid #7b1fa2; animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .avatar { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid #4a148c; }
-        .user-info { font-weight: bold; color: #ce93d8; font-size: 0.85em; display: block; margin-bottom: 4px; }
-        
-        .input-area { padding: 15px; background: #121212; display: flex; gap: 10px; border-top: 1px solid #222; }
-        #msg-input { flex: 1; padding: 12px; background: #1e1e1e; border: 1px solid #4a148c; color: white; border-radius: 25px; outline: none; }
-        #send-btn { width: auto; padding: 0 20px; border-radius: 25px; }
+        .others .bubble { background: #1f2c33; border-top-left-radius: 0; color: #e9edef; }
+        .mine .bubble { background: #4a148c; border-top-right-radius: 0; color: #e9edef; }
+
+        .avatar-chat { width: 30px; height: 30px; border-radius: 50%; margin-right: 8px; }
+        .user-label { font-size: 0.75rem; font-weight: bold; color: #a855f7; margin-bottom: 3px; }
+        .mine .user-label { color: #e1bee7; text-align: right; }
+
+        /* Input Area */
+        .input-area { 
+            background: #1f2c33; padding: 10px 15px; display: flex; align-items: center; gap: 10px;
+        }
+        #msg-input { 
+            flex: 1; background: #2a3942; border: none; padding: 12px 20px; 
+            color: white; border-radius: 25px; outline: none; font-size: 0.95rem;
+        }
+        #send-btn { 
+            width: 45px; height: 45px; border-radius: 50%; padding: 0; 
+            display: flex; justify-content: center; align-items: center; font-size: 1.2rem;
+        }
+
+        /* Scrollbar */
+        #messages::-webkit-scrollbar { width: 6px; }
+        #messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
     </style>
 </head>
 <body>
     <div id="login-screen">
         <div class="login-box">
-            <h2 style="color: #ba68c8;">WineChat</h2>
-            <input type="text" id="nickname" placeholder="Tu Nickname...">
-            <p style="font-size: 0.8em; color: #888; margin-top: 15px;">Sube tu foto de perfil:</p>
+            <h2>WineChat Purple</h2>
+            <input type="text" id="nickname" placeholder="Nickname">
+            <p style="font-size: 0.8em; color: #8a9196; margin-top: 10px;">Foto de perfil:</p>
             <input type="file" id="photo-file" accept="image/*">
-            <button onclick="startChat()">ENTRAR</button>
+            <button onclick="startChat()">COMENZAR</button>
         </div>
     </div>
 
     <div id="chat-screen" class="hidden">
-        <header>WINECHAT GLOBAL</header>
+        <header>
+            <div id="header-user" style="display: flex; align-items: center;">
+                <span style="font-size: 1.1rem; font-weight: 500;">Chat Global</span>
+            </div>
+        </header>
         <div id="messages"></div>
         <div class="input-area">
-            <input type="text" id="msg-input" placeholder="Escribe un mensaje..." onkeypress="if(event.key==='Enter') sendMessage()">
+            <input type="text" id="msg-input" placeholder="Escribe un mensaje..." autocomplete="off">
             <button id="send-btn" onclick="sendMessage()">➤</button>
         </div>
     </div>
@@ -56,6 +114,7 @@
     <script>
         const socket = io();
         let myPhoto = "";
+        let myNick = "";
 
         document.getElementById('photo-file').addEventListener('change', function(e) {
             const reader = new FileReader();
@@ -66,11 +125,12 @@
         function startChat() {
             const nick = document.getElementById('nickname').value;
             if (nick && myPhoto) {
+                myNick = nick;
                 socket.emit('join', { nickname: nick, photo: myPhoto });
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('chat-screen').classList.remove('hidden');
             } else {
-                alert("Pon un nick y sube tu foto, causa.");
+                alert("Llena tus datos, causa.");
             }
         }
 
@@ -82,19 +142,27 @@
             }
         }
 
+        // Detectar Enter
+        document.getElementById('msg-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
         socket.on('message', (data) => {
-            const div = document.createElement('div');
-            div.className = 'msg';
-            div.innerHTML = `
-                <img src="${data.photo}" class="avatar">
-                <div>
-                    <span class="user-info">${data.user}</span>
+            const container = document.createElement('div');
+            const isMine = data.user === myNick;
+            container.className = `msg-container ${isMine ? 'mine' : 'others'}`;
+            
+            container.innerHTML = `
+                ${!isMine ? `<img src="${data.photo}" class="avatar-chat">` : ''}
+                <div class="bubble">
+                    <span class="user-label">${isMine ? 'Tú' : data.user}</span>
                     <span>${data.text}</span>
                 </div>
             `;
-            const container = document.getElementById('messages');
-            container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
+            
+            const msgBox = document.getElementById('messages');
+            msgBox.appendChild(container);
+            msgBox.scrollTop = msgBox.scrollHeight;
         });
     </script>
 </body>
