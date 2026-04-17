@@ -1,103 +1,101 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Mini WhatsApp</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WineChat V2</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #050505; color: #f0f0f0; font-family: sans-serif; }
+        .hidden { display: none !important; }
+        
+        /* Login */
+        #login-screen { display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .login-box { background: #121212; padding: 30px; border-radius: 20px; border: 2px solid #7b1fa2; width: 90%; max-width: 350px; text-align: center; }
+        input[type="text"], input[type="file"] { width: 100%; padding: 12px; margin: 10px 0; background: #1e1e1e; border: 1px solid #4a148c; color: white; border-radius: 8px; }
+        button { background: #7b1fa2; color: white; border: none; padding: 12px; width: 100%; cursor: pointer; border-radius: 8px; font-weight: bold; font-size: 1rem; }
+        button:hover { background: #9c27b0; }
+
+        /* Chat */
+        #chat-screen { display: flex; flex-direction: column; height: 100vh; max-width: 700px; margin: 0 auto; background: #0a0a0a; border-left: 1px solid #222; border-right: 1px solid #222; }
+        header { background: #121212; padding: 15px; border-bottom: 1px solid #4a148c; text-align: center; color: #ba68c8; font-weight: bold; }
+        #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        
+        .msg { display: flex; align-items: flex-start; gap: 12px; background: #161616; padding: 12px; border-radius: 15px; border-left: 4px solid #7b1fa2; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .avatar { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid #4a148c; }
+        .user-info { font-weight: bold; color: #ce93d8; font-size: 0.85em; display: block; margin-bottom: 4px; }
+        
+        .input-area { padding: 15px; background: #121212; display: flex; gap: 10px; border-top: 1px solid #222; }
+        #msg-input { flex: 1; padding: 12px; background: #1e1e1e; border: 1px solid #4a148c; color: white; border-radius: 25px; outline: none; }
+        #send-btn { width: auto; padding: 0 20px; border-radius: 25px; }
+    </style>
 </head>
 <body>
+    <div id="login-screen">
+        <div class="login-box">
+            <h2 style="color: #ba68c8;">WineChat</h2>
+            <input type="text" id="nickname" placeholder="Tu Nickname...">
+            <p style="font-size: 0.8em; color: #888; margin-top: 15px;">Sube tu foto de perfil:</p>
+            <input type="file" id="photo-file" accept="image/*">
+            <button onclick="startChat()">ENTRAR</button>
+        </div>
+    </div>
 
-<div id="login">
-    <h3>Login / Registro</h3>
-    <input id="user" placeholder="username">
-    <input id="nick" placeholder="nickname">
-    <input id="pass" type="password" placeholder="password">
-    <button onclick="register()">Registrarse</button>
-    <button onclick="login()">Entrar</button>
-</div>
+    <div id="chat-screen" class="hidden">
+        <header>WINECHAT GLOBAL</header>
+        <div id="messages"></div>
+        <div class="input-area">
+            <input type="text" id="msg-input" placeholder="Escribe un mensaje..." onkeypress="if(event.key==='Enter') sendMessage()">
+            <button id="send-btn" onclick="sendMessage()">➤</button>
+        </div>
+    </div>
 
-<div id="app" style="display:none;">
-    <header><h3>Chat Global</h3></header>
-    <div id="chat-box"></div>
+    <script>
+        const socket = io();
+        let myPhoto = "";
 
-    <form id="chat-form">
-        <input id="msg" placeholder="mensaje">
-        <button>➤</button>
-    </form>
-</div>
+        document.getElementById('photo-file').addEventListener('change', function(e) {
+            const reader = new FileReader();
+            reader.onload = function() { myPhoto = reader.result; };
+            reader.readAsDataURL(e.target.files[0]);
+        });
 
-<script src="/socket.io/socket.io.js"></script>
-<script>
-const socket = io();
+        function startChat() {
+            const nick = document.getElementById('nickname').value;
+            if (nick && myPhoto) {
+                socket.emit('join', { nickname: nick, photo: myPhoto });
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('chat-screen').classList.remove('hidden');
+            } else {
+                alert("Pon un nick y sube tu foto, causa.");
+            }
+        }
 
-let currentUser = null;
+        function sendMessage() {
+            const input = document.getElementById('msg-input');
+            if (input.value.trim()) {
+                socket.emit('message', input.value);
+                input.value = '';
+            }
+        }
 
-// 🧠 validación
-const valid = u => /^[a-z0-9]+$/.test(u);
-
-// 🟢 REGISTRO
-function register(){
-    const username = user.value.trim();
-    const password = pass.value.trim();
-    const nickname = nick.value.trim();
-
-    if(!valid(username)) return alert("username inválido");
-
-    socket.emit('register', { username, password, nickname });
-}
-
-socket.on('register success', () => alert("Registrado 🚀"));
-socket.on('register error', e => alert(e));
-
-// 🔵 LOGIN
-function login(){
-    const username = user.value.trim();
-    const password = pass.value.trim();
-
-    socket.emit('login', { username, password });
-}
-
-socket.on('login success', (data) => {
-    currentUser = data.username;
-
-    loginDiv.style.display = "none";
-    app.style.display = "flex";
-});
-
-socket.on('login error', e => alert(e));
-
-// 💬 CHAT
-chatForm.onsubmit = e => {
-    e.preventDefault();
-    if(msg.value.trim()){
-        socket.emit('send message', msg.value);
-        msg.value="";
-    }
-};
-
-socket.on('load history', (h)=>{
-    chatBox.innerHTML="";
-    h.forEach(addMsg);
-});
-
-socket.on('broadcast message', addMsg);
-
-function addMsg(m){
-    const d = document.createElement("div");
-    d.innerHTML = `<b>${m.nickname}</b>: ${m.text} <small>${m.time}</small>`;
-    chatBox.appendChild(d);
-}
-
-// refs
-const loginDiv = document.getElementById('login');
-const app = document.getElementById('app');
-const user = document.getElementById('user');
-const pass = document.getElementById('pass');
-const nick = document.getElementById('nick');
-const msg = document.getElementById('msg');
-const chatBox = document.getElementById('chat-box');
-const chatForm = document.getElementById('chat-form');
-
-</script>
+        socket.on('message', (data) => {
+            const div = document.createElement('div');
+            div.className = 'msg';
+            div.innerHTML = `
+                <img src="${data.photo}" class="avatar">
+                <div>
+                    <span class="user-info">${data.user}</span>
+                    <span>${data.text}</span>
+                </div>
+            `;
+            const container = document.getElementById('messages');
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        });
+    </script>
 </body>
 </html>
