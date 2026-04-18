@@ -3,86 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WineChat Ultra</title>
+    <title>WineChat Ultra 2.0</title>
     <link rel="stylesheet" href="style.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
 
-    <div id="login-screen">
+    <div id="screen-login" class="overlay">
         <div class="box">
             <h2>WineChat</h2>
-            <img id="p-img" class="clickable-avatar" src="https://via.placeholder.com/100?text=FOTO" onclick="document.getElementById('f-input').click()">
-            <input type="file" id="f-input" class="hidden" accept="image/*" onchange="loadImg(this, 'p-img')">
-            <input type="text" id="p-nick" placeholder="Tu Apodo...">
-            <button onclick="entrar()">EMPEZAR</button>
+            <img id="login-prev" class="profile-img-preview" src="https://via.placeholder.com/100?text=FOTO" onclick="document.getElementById('file-login').click()">
+            <input type="file" id="file-login" class="hidden" accept="image/*" onchange="handlePreview(this, 'login-prev')">
+            <input type="text" id="nick-login" placeholder="Tu Apodo...">
+            <button onclick="appJoin()">EMPEZAR</button>
         </div>
     </div>
 
-    <div id="settings-modal" class="hidden">
+    <div id="screen-settings" class="overlay hidden">
         <div class="box">
-            <h3>Mi Perfil</h3>
-            <img id="e-img" class="clickable-avatar" onclick="document.getElementById('e-input').click()">
-            <input type="file" id="e-input" class="hidden" accept="image/*" onchange="loadImg(this, 'e-img')">
-            <input type="text" id="e-nick">
-            <button onclick="save()">GUARDAR</button>
-            <button onclick="toggleM()" style="margin-top:8px; background:#3b4a54">CERRAR</button>
+            <h3>Ajustes de Perfil</h3>
+            <img id="settings-prev" class="profile-img-preview" onclick="document.getElementById('file-settings').click()">
+            <input type="file" id="file-settings" class="hidden" accept="image/*" onchange="handlePreview(this, 'settings-prev')">
+            <input type="text" id="nick-settings">
+            <button onclick="appSave()">GUARDAR</button>
+            <button onclick="toggleSettings()" style="background:#3b4a54; margin-top:8px;">CERRAR</button>
         </div>
     </div>
 
-    <div id="chat-screen" class="hidden">
-        <div class="banner"></div>
+    <div id="app-chat" class="app-container hidden">
+        <div class="server-banner"></div>
         <header>
             <div style="display:flex; align-items:center; gap:10px">
-                <img id="my-ava" style="width:35px; height:35px; border-radius:50%; object-fit:cover">
-                <span id="my-name" style="font-weight:bold"></span>
+                <img id="header-avatar" style="width:35px; height:35px; border-radius:50%; object-fit:cover">
+                <span id="header-nick" style="font-weight:bold"></span>
             </div>
-            <button onclick="toggleM()" style="width:auto; padding:5px 15px; font-size:0.8rem">AJUSTES</button>
+            <button onclick="toggleSettings()" style="width:auto; padding:5px 15px; font-size:0.75rem">PERFIL</button>
         </header>
-        <div id="messages"></div>
-        <div class="input-area">
-            <input type="text" id="msg-input" placeholder="Escribe aquí..." autocomplete="off">
-            <button class="btn-send" onclick="send()">➤</button>
+
+        <div id="chat-box"></div>
+
+        <div class="footer-input">
+            <input type="text" id="main-input" placeholder="Escribe aquí..." autocomplete="off">
+            <button class="send-icon" onclick="appSend()">➤</button>
         </div>
     </div>
 
     <script>
         const socket = io();
-        let myUser = JSON.parse(localStorage.getItem('wine_user')) || null;
-        let activePhoto = "";
+        let session = JSON.parse(localStorage.getItem('wine_session')) || null;
+        let tempImg = "";
 
-        function loadImg(input, targetId) {
+        // Funciones de utilidad
+        function handlePreview(input, targetId) {
             const reader = new FileReader();
             reader.onload = (e) => {
                 document.getElementById(targetId).src = e.target.result;
-                activePhoto = e.target.result;
+                tempImg = e.target.result;
             };
             if(input.files[0]) reader.readAsDataURL(input.files[0]);
         }
 
-        function entrar() {
-            const nick = document.getElementById('p-nick').value.trim();
-            if(!nick || (!myUser && !activePhoto)) return alert("Datos incompletos");
-            myUser = { nickname: nick, photo: activePhoto || myUser.photo };
-            localStorage.setItem('wine_user', JSON.stringify(myUser));
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('chat-screen').classList.remove('hidden');
-            document.getElementById('my-ava').src = myUser.photo;
-            document.getElementById('my-name').innerText = myUser.nickname;
+        function toggleSettings() {
+            const modal = document.getElementById('screen-settings');
+            modal.classList.toggle('hidden');
+            if(!modal.classList.contains('hidden')) {
+                document.getElementById('nick-settings').value = session.nickname;
+                document.getElementById('settings-prev').src = session.photo;
+                tempImg = session.photo;
+            }
         }
 
-        function send() {
-            const input = document.getElementById('msg-input');
-            const txt = input.value.trim();
-            if(txt) {
+        // Lógica de Aplicación
+        function appJoin() {
+            const nick = document.getElementById('nick-login').value.trim();
+            if(!nick || (!session && !tempImg)) return alert("Nick y Foto requeridos.");
+            
+            session = { nickname: nick, photo: tempImg || session.photo };
+            localStorage.setItem('wine_session', JSON.stringify(session));
+            
+            document.getElementById('screen-login').classList.add('hidden');
+            document.getElementById('app-chat').classList.remove('hidden');
+            document.getElementById('header-avatar').src = session.photo;
+            document.getElementById('header-nick').innerText = session.nickname;
+        }
+
+        function appSave() {
+            const nick = document.getElementById('nick-settings').value.trim();
+            if(nick) {
+                session = { nickname: nick, photo: tempImg };
+                localStorage.setItem('wine_session', JSON.stringify(session));
+                document.getElementById('header-avatar').src = session.photo;
+                document.getElementById('header-nick').innerText = session.nickname;
+                toggleSettings();
+            }
+        }
+
+        function appSend() {
+            const input = document.getElementById('main-input');
+            const val = input.value.trim();
+            if(val) {
                 let type = 'user';
-                let content = txt;
-                if(txt.startsWith('/sys ')) { type = 'sys'; content = txt.replace('/sys ', ''); }
-                if(txt.startsWith('/aviso ')) { type = 'aviso'; content = txt.replace('/aviso ', ''); }
+                let content = val;
+                if(val.startsWith('/sys ')) { type = 'sys'; content = val.replace('/sys ', ''); }
+                if(val.startsWith('/aviso ')) { type = 'aviso'; content = val.replace('/aviso ', ''); }
                 
-                socket.emit('message', {
-                    nickname: myUser.nickname,
-                    photo: myUser.photo,
+                socket.emit('send-message', {
+                    nickname: session.nickname,
+                    photo: session.photo,
                     text: content,
                     type: type
                 });
@@ -91,54 +118,31 @@
             }
         }
 
-        function toggleM() {
-            const m = document.getElementById('settings-modal');
-            m.classList.toggle('hidden');
-            if(!m.classList.contains('hidden')) {
-                document.getElementById('e-nick').value = myUser.nickname;
-                document.getElementById('e-img').src = myUser.photo;
-                activePhoto = myUser.photo;
-            }
-        }
-
-        function save() {
-            const n = document.getElementById('e-nick').value.trim();
-            if(n) {
-                myUser = { nickname: n, photo: activePhoto };
-                localStorage.setItem('wine_user', JSON.stringify(myUser));
-                document.getElementById('my-ava').src = myUser.photo;
-                document.getElementById('my-name').innerText = myUser.nickname;
-                toggleM();
-            }
-        }
-
-        socket.on('load history', (history) => {
-            document.getElementById('messages').innerHTML = '';
-            history.forEach(render);
-            if(myUser) {
-                activePhoto = myUser.photo;
-                document.getElementById('p-nick').value = myUser.nickname;
-                document.getElementById('p-img').src = myUser.photo;
-                entrar();
-            }
+        // Socket Events
+        socket.on('load-history', (history) => {
+            const box = document.getElementById('chat-box');
+            box.innerHTML = '';
+            history.forEach(renderMessage);
+            if(session) appJoin();
         });
 
-        socket.on('new message', render);
+        socket.on('new-message', renderMessage);
 
-        function render(data) {
-            const box = document.getElementById('messages');
+        function renderMessage(data) {
+            const box = document.getElementById('chat-box');
             let html = "";
+            
             if(data.type === 'sys') {
-                html = `<div class="sys-msg">${data.text}</div>`;
+                html = `<div class="sys-line">${data.text}</div>`;
             } else if(data.type === 'aviso') {
-                html = `<div class="aviso-box"><small style="color:#ba68c8; font-weight:bold">${data.nickname.toUpperCase()} AVISO AL SERVIDOR:</small><br>${data.text}</div>`;
+                html = `<div class="alert-box"><small style="color:#ba68c8; font-weight:bold">${data.nickname.toUpperCase()} AVISO:</small><br>${data.text}</div>`;
             } else {
                 const isMine = data.socketId === socket.id;
                 html = `
-                    <div class="msg-row ${isMine?'mine':'others'}">
-                        ${!isMine ? `<img src="${data.photo}" class="avatar-chat">` : ''}
+                    <div class="msg-row ${isMine ? 'mine' : 'others'}">
+                        ${!isMine ? `<img src="${data.photo}" class="chat-avatar">` : ''}
                         <div class="bubble">
-                            <span class="u-name">${isMine ? 'Tú' : data.nickname}</span>
+                            <span class="user-tag">${isMine ? 'Tú' : data.nickname}</span>
                             <span>${data.text}</span>
                         </div>
                     </div>`;
@@ -147,7 +151,8 @@
             box.scrollTop = box.scrollHeight;
         }
 
-        document.getElementById('msg-input').onkeypress = (e) => e.key === 'Enter' && send();
+        // Key listeners
+        document.getElementById('main-input').onkeypress = (e) => e.key === 'Enter' && appSend();
     </script>
 </body>
 </html>
