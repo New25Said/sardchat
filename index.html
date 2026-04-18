@@ -3,149 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WineChat Ultra</title>
+    <title>WineChat Banner Header</title>
     <link rel="stylesheet" href="style.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
 
-    <div id="screen-login" class="overlay">
+    <div id="scr-login" class="overlay">
         <div class="box">
             <h2 style="color:#ba68c8">WineChat</h2>
-            <img id="login-prev" class="profile-img-preview" src="https://via.placeholder.com/100?text=FOTO" onclick="document.getElementById('file-login').click()">
-            <input type="file" id="file-login" class="hidden" accept="image/*" onchange="previewImg(this, 'login-prev')">
-            <input type="text" id="nick-login" placeholder="Tu Apodo...">
-            <button onclick="joinChat()">ENTRAR</button>
+            <img id="l-prev" class="profile-img-preview" src="https://via.placeholder.com/100?text=FOTO" onclick="document.getElementById('f-l').click()">
+            <input type="file" id="f-l" class="hidden" accept="image/*" onchange="pv(this, 'l-prev')">
+            <input type="text" id="n-l" placeholder="¿Nickname?">
+            <button onclick="jn()">ENTRAR</button>
         </div>
     </div>
 
-    <div id="screen-settings" class="overlay hidden">
+    <div id="scr-set" class="overlay hidden">
         <div class="box">
-            <h3 style="color:#ba68c8">Perfil</h3>
-            <img id="settings-prev" class="profile-img-preview" onclick="document.getElementById('file-settings').click()">
-            <input type="file" id="file-settings" class="hidden" accept="image/*" onchange="previewImg(this, 'settings-prev')">
-            <input type="text" id="nick-settings">
-            <button onclick="saveProfile()">GUARDAR</button>
-            <button onclick="toggleSettings()" style="background:#444; margin-top:10px;">CERRAR</button>
+            <h3>Perfil</h3>
+            <img id="s-prev" class="profile-img-preview" onclick="document.getElementById('f-s').click()">
+            <input type="file" id="f-s" class="hidden" accept="image/*" onchange="pv(this, 's-prev')">
+            <input type="text" id="n-s">
+            <button onclick="sv()">GUARDAR</button>
+            <button onclick="tg()" style="background:#444; margin-top:10px;">CERRAR</button>
         </div>
     </div>
 
     <div id="app-chat" class="hidden">
-        <div class="server-banner"></div>
         <header>
-            <div style="display:flex; align-items:center; gap:10px">
-                <img id="h-ava" style="width:35px; height:35px; border-radius:50%; object-fit:cover">
-                <span id="h-nick" style="font-weight:bold"></span>
+            <div class="header-controls">
+                <div style="display:flex; align-items:center; gap:10px">
+                    <img id="h-a" style="width:38px; height:38px; border-radius:50%; object-fit:cover; border:2px solid #7b1fa2">
+                    <span id="h-n" style="font-weight:bold; text-shadow: 1px 1px 2px black;"></span>
+                </div>
+                <button onclick="tg()" style="width:auto; padding:5px 15px; font-size:0.7rem; background: rgba(123, 31, 162, 0.6);">AJUSTES</button>
             </div>
-            <button onclick="toggleSettings()" style="width:auto; padding:5px 15px; font-size:0.75rem">PERFIL</button>
         </header>
-
+        
         <div id="chat-box"></div>
 
         <div class="footer-input">
             <input type="text" id="main-input" placeholder="Escribe un mensaje..." autocomplete="off">
-            <button class="send-icon" onclick="sendMessage()">➤</button>
+            <button class="send-btn" onclick="sm()">➤</button>
         </div>
     </div>
 
     <script>
         const socket = io();
-        let session = JSON.parse(localStorage.getItem('wine_user')) || null;
-        let tempPhoto = "";
+        let ss = JSON.parse(localStorage.getItem('w_s')) || null;
+        let tP = "";
 
-        function previewImg(input, target) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                document.getElementById(target).src = e.target.result;
-                tempPhoto = e.target.result;
-            };
-            if(input.files[0]) reader.readAsDataURL(input.files[0]);
+        function pv(i, t) {
+            const r = new FileReader();
+            r.onload = (e) => { document.getElementById(t).src = e.target.result; tP = e.target.result; };
+            if(i.files[0]) r.readAsDataURL(i.files[0]);
         }
 
-        function joinChat() {
-            const nick = document.getElementById('nick-login').value.trim();
-            if(!nick || (!session && !tempPhoto)) return alert("Nick y Foto requeridos");
-            
-            session = { nickname: nick, photo: tempPhoto || session.photo };
-            localStorage.setItem('wine_user', JSON.stringify(session));
-            
-            document.getElementById('screen-login').classList.add('hidden');
+        function jn() {
+            const n = document.getElementById('n-l').value.trim();
+            if(!n || (!ss && !tP)) return alert("Faltan datos");
+            ss = { n: n, p: tP || ss.p };
+            localStorage.setItem('w_s', JSON.stringify(ss));
+            document.getElementById('scr-login').style.display = 'none';
             document.getElementById('app-chat').classList.remove('hidden');
-            document.getElementById('h-ava').src = session.photo;
-            document.getElementById('h-nick').innerText = session.nickname;
+            document.getElementById('h-a').src = ss.p;
+            document.getElementById('h-n').innerText = ss.n;
         }
 
-        function sendMessage() {
-            const input = document.getElementById('main-input');
-            const val = input.value.trim();
+        function sm() {
+            const i = document.getElementById('main-input');
+            const val = i.value.trim();
             if(val) {
-                let type = 'user'; let text = val;
-                if(val.startsWith('/sys ')) { type = 'sys'; text = val.replace('/sys ', ''); }
-                if(val.startsWith('/aviso ')) { type = 'aviso'; text = val.replace('/aviso ', ''); }
-                
-                socket.emit('send-message', {
-                    nickname: session.nickname,
-                    photo: session.photo,
-                    text: text,
-                    type: type
-                });
-                input.value = '';
-                input.focus();
+                let t = 'u', txt = val;
+                if(val.startsWith('/sys ')) { t='s'; txt=val.replace('/sys ',''); }
+                if(val.startsWith('/aviso ')) { t='a'; txt=val.replace('/aviso ',''); }
+                socket.emit('send-message', { n: ss.n, p: ss.p, txt: txt, t: t });
+                i.value = ''; 
+                i.focus();
             }
         }
 
-        function toggleSettings() {
-            const m = document.getElementById('screen-settings');
+        function tg() {
+            const m = document.getElementById('scr-set');
             m.classList.toggle('hidden');
             if(!m.classList.contains('hidden')) {
-                document.getElementById('nick-settings').value = session.nickname;
-                document.getElementById('settings-prev').src = session.photo;
-                tempPhoto = session.photo;
+                document.getElementById('n-s').value = ss.n;
+                document.getElementById('s-prev').src = ss.p;
+                tP = ss.p;
             }
         }
 
-        function saveProfile() {
-            const n = document.getElementById('nick-settings').value.trim();
-            if(n) {
-                session = { nickname: n, photo: tempPhoto };
-                localStorage.setItem('wine_user', JSON.stringify(session));
-                document.getElementById('h-ava').src = session.photo;
-                document.getElementById('h-nick').innerText = session.nickname;
-                toggleSettings();
-            }
+        function sv() {
+            const n = document.getElementById('n-s').value.trim();
+            if(n) { ss = { n: n, p: tP }; localStorage.setItem('w_s', JSON.stringify(ss)); jn(); tg(); }
         }
 
-        socket.on('load-history', (history) => {
+        socket.on('load-history', (h) => {
             document.getElementById('chat-box').innerHTML = '';
-            history.forEach(render);
-            if(session) joinChat();
+            h.forEach(rd);
+            if(ss) jn();
         });
 
-        socket.on('new-message', render);
+        socket.on('new-message', rd);
 
-        function render(data) {
-            const box = document.getElementById('chat-box');
-            let html = "";
-            if(data.type === 'sys') {
-                html = `<div style="text-align:center; font-size:0.7rem; color:#888; margin:5px 0;">${data.text}</div>`;
-            } else if(data.type === 'aviso') {
-                html = `<div style="text-align:center; background:rgba(123,31,162,0.1); border:1px solid #7b1fa2; padding:10px; border-radius:10px; margin:10px 0;"><small style="color:#ba68c8; font-weight:bold">${data.nickname.toUpperCase()}:</small><br>${data.text}</div>`;
-            } else {
-                const isMine = data.socketId === socket.id;
-                html = `
-                    <div class="msg-row ${isMine?'mine':'others'}">
-                        ${!isMine ? `<img src="${data.photo}" class="chat-avatar">` : ''}
-                        <div class="bubble">
-                            <span class="user-tag">${isMine?'Tú':data.nickname}</span>
-                            <span>${data.text}</span>
-                        </div>
-                    </div>`;
+        function rd(d) {
+            const b = document.getElementById('chat-box');
+            let h = "";
+            if(d.t === 's') h = `<div style="text-align:center; font-size:0.75rem; color:#888; margin:10px 0;">${d.txt}</div>`;
+            else if(d.t === 'a') h = `<div style="text-align:center; background:rgba(123,31,162,0.15); border:1px solid #7b1fa2; padding:15px; border-radius:12px; margin:15px 0;"><small style="color:#ba68c8; font-weight:bold">${d.n.toUpperCase()}:</small><br>${d.txt}</div>`;
+            else {
+                const m = d.socketId === socket.id;
+                h = `<div class="msg-row ${m?'mine':'others'}">${!m ? `<img src="${d.p}" class="chat-avatar">` : ''}<div class="bubble"><span class="u-tag">${m?'Tú':d.n}</span><span>${d.txt}</span></div></div>`;
             }
-            box.insertAdjacentHTML('beforeend', html);
-            box.scrollTop = box.scrollHeight;
+            b.insertAdjacentHTML('beforeend', h);
+            b.scrollTop = b.scrollHeight;
         }
 
-        document.getElementById('main-input').onkeypress = (e) => e.key === 'Enter' && sendMessage();
+        document.getElementById('main-input').onkeypress = (e) => e.key === 'Enter' && sm();
     </script>
 </body>
 </html>
