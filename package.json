@@ -1,7 +1,7 @@
 {
-  "name": "winechat-ultra",
-  "version": "1.1.0",
-  "description": "ilovyuwils",
+  "name": "winechat-pro-edition",
+  "version": "2.0.0",
+  "description": "Clon de WhatsApp - Estructura Reforzada",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
