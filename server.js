@@ -27,6 +27,15 @@ io.on('connection', (socket) => {
         if (activeUsers[socket.id]) {
             const oldName = activeUsers[socket.id].nickname;
             activeUsers[socket.id] = { nickname: data.nickname, photo: data.photo };
+            
+            // Actualizamos el historial para que los que entren nuevos vean el cambio
+            chatHistory.forEach(msg => {
+                if(msg.userId === socket.id) {
+                    msg.userNick = data.nickname;
+                    msg.userPhoto = data.photo;
+                }
+            });
+
             io.emit('user list update', activeUsers);
             io.emit('message', { text: `${oldName} ahora es ${data.nickname}`, type: 'system' });
         }
@@ -37,12 +46,11 @@ io.on('connection', (socket) => {
         const user = activeUsers[socket.id];
         let msgData = {
             userId: socket.id,
-            userNick: user.nickname, // Guardamos copia para que no se pierda al salir
+            userNick: user.nickname,
             userPhoto: user.photo,
             time: Date.now()
         };
 
-        // Comandos
         if (data.startsWith('/sys ')) {
             msgData.text = data.replace('/sys ', '');
             msgData.type = 'system';
@@ -69,4 +77,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('WineChat Pro en puerto ' + PORT));
+server.listen(PORT, () => console.log('WineChat Pro Online'));
