@@ -11,22 +11,22 @@
 
     <div id="login-screen">
         <div class="box">
-            <h2 style="color:#ba68c8">Registro</h2>
-            <img id="p-img" class="clickable-avatar" src="https://via.placeholder.com/100?text=+" onclick="document.getElementById('f-input').click()">
-            <input type="file" id="f-input" class="hidden" accept="image/*" onchange="preview(this, 'p-img')">
-            <input type="text" id="p-nick" placeholder="Apodo...">
-            <button onclick="entrar()">ENTRAR</button>
+            <h2>WineChat</h2>
+            <img id="p-img" class="clickable-avatar" src="https://via.placeholder.com/100?text=FOTO" onclick="document.getElementById('f-input').click()">
+            <input type="file" id="f-input" class="hidden" accept="image/*" onchange="loadImg(this, 'p-img')">
+            <input type="text" id="p-nick" placeholder="Tu Apodo...">
+            <button onclick="entrar()">EMPEZAR</button>
         </div>
     </div>
 
     <div id="settings-modal" class="hidden">
         <div class="box">
-            <h3>Perfil</h3>
+            <h3>Mi Perfil</h3>
             <img id="e-img" class="clickable-avatar" onclick="document.getElementById('e-input').click()">
-            <input type="file" id="e-input" class="hidden" accept="image/*" onchange="preview(this, 'e-img')">
+            <input type="file" id="e-input" class="hidden" accept="image/*" onchange="loadImg(this, 'e-img')">
             <input type="text" id="e-nick">
-            <button onclick="update()">GUARDAR</button>
-            <button onclick="toggleModal()" style="margin-top:8px; background:#444">CANCELAR</button>
+            <button onclick="save()">GUARDAR</button>
+            <button onclick="toggleM()" style="margin-top:8px; background:#3b4a54">CERRAR</button>
         </div>
     </div>
 
@@ -34,112 +34,117 @@
         <div class="banner"></div>
         <header>
             <div style="display:flex; align-items:center; gap:10px">
-                <img id="my-p" style="width:35px; height:35px; border-radius:50%; object-fit:cover">
-                <span id="my-n"></span>
+                <img id="my-ava" style="width:35px; height:35px; border-radius:50%; object-fit:cover">
+                <span id="my-name" style="font-weight:bold"></span>
             </div>
-            <button onclick="toggleModal()" style="width:auto; padding:5px 15px">PERFIL</button>
+            <button onclick="toggleM()" style="width:auto; padding:5px 15px; font-size:0.8rem">AJUSTES</button>
         </header>
         <div id="messages"></div>
         <div class="input-area">
-            <input type="text" id="msg-input" placeholder="Mensaje..." autocomplete="off">
+            <input type="text" id="msg-input" placeholder="Escribe aquí..." autocomplete="off">
             <button class="btn-send" onclick="send()">➤</button>
         </div>
     </div>
 
     <script>
         const socket = io();
-        let user = JSON.parse(localStorage.getItem('wine_user')) || null;
-        let currentPhoto = "";
+        let myUser = JSON.parse(localStorage.getItem('wine_user')) || null;
+        let activePhoto = "";
 
-        function preview(input, id) {
+        function loadImg(input, targetId) {
             const reader = new FileReader();
-            reader.onload = (e) => { 
-                document.getElementById(id).src = e.target.result;
-                currentPhoto = e.target.result;
+            reader.onload = (e) => {
+                document.getElementById(targetId).src = e.target.result;
+                activePhoto = e.target.result;
             };
             if(input.files[0]) reader.readAsDataURL(input.files[0]);
         }
 
         function entrar() {
-            const nick = document.getElementById('p-nick').value;
-            if(!nick || (!user && !currentPhoto)) return alert("Datos faltantes");
-            user = { nickname: nick, photo: currentPhoto || user.photo };
-            localStorage.setItem('wine_user', JSON.stringify(user));
-            document.getElementById('login-screen').style.display = 'none';
+            const nick = document.getElementById('p-nick').value.trim();
+            if(!nick || (!myUser && !activePhoto)) return alert("Datos incompletos");
+            myUser = { nickname: nick, photo: activePhoto || myUser.photo };
+            localStorage.setItem('wine_user', JSON.stringify(myUser));
+            document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('chat-screen').classList.remove('hidden');
-            document.getElementById('my-p').src = user.photo;
-            document.getElementById('my-n').innerText = user.nickname;
+            document.getElementById('my-ava').src = myUser.photo;
+            document.getElementById('my-name').innerText = myUser.nickname;
         }
 
         function send() {
             const input = document.getElementById('msg-input');
-            const val = input.value.trim();
-            if(val) {
+            const txt = input.value.trim();
+            if(txt) {
                 let type = 'user';
-                let text = val;
-                if(val.startsWith('/sys ')) { type = 'sys'; text = val.replace('/sys ', ''); }
-                if(val.startsWith('/aviso ')) { type = 'aviso'; text = val.replace('/aviso ', ''); }
+                let content = txt;
+                if(txt.startsWith('/sys ')) { type = 'sys'; content = txt.replace('/sys ', ''); }
+                if(txt.startsWith('/aviso ')) { type = 'aviso'; content = txt.replace('/aviso ', ''); }
                 
                 socket.emit('message', {
-                    nick: user.nickname,
-                    photo: user.photo,
-                    text: text,
-                    type: type,
-                    id: socket.id
+                    nickname: myUser.nickname,
+                    photo: myUser.photo,
+                    text: content,
+                    type: type
                 });
                 input.value = '';
                 input.focus();
             }
         }
 
-        function toggleModal() {
+        function toggleM() {
             const m = document.getElementById('settings-modal');
             m.classList.toggle('hidden');
             if(!m.classList.contains('hidden')) {
-                document.getElementById('e-nick').value = user.nickname;
-                document.getElementById('e-img').src = user.photo;
-                currentPhoto = user.photo;
+                document.getElementById('e-nick').value = myUser.nickname;
+                document.getElementById('e-img').src = myUser.photo;
+                activePhoto = myUser.photo;
             }
         }
 
-        function update() {
-            const n = document.getElementById('e-nick').value;
+        function save() {
+            const n = document.getElementById('e-nick').value.trim();
             if(n) {
-                user = { nickname: n, photo: currentPhoto };
-                localStorage.setItem('wine_user', JSON.stringify(user));
-                document.getElementById('my-p').src = user.photo;
-                document.getElementById('my-n').innerText = user.nickname;
-                toggleModal();
+                myUser = { nickname: n, photo: activePhoto };
+                localStorage.setItem('wine_user', JSON.stringify(myUser));
+                document.getElementById('my-ava').src = myUser.photo;
+                document.getElementById('my-name').innerText = myUser.nickname;
+                toggleM();
             }
         }
 
         socket.on('load history', (history) => {
+            document.getElementById('messages').innerHTML = '';
             history.forEach(render);
-            if(user) entrar();
+            if(myUser) {
+                activePhoto = myUser.photo;
+                document.getElementById('p-nick').value = myUser.nickname;
+                document.getElementById('p-img').src = myUser.photo;
+                entrar();
+            }
         });
 
         socket.on('new message', render);
 
         function render(data) {
-            const b = document.getElementById('messages');
+            const box = document.getElementById('messages');
             let html = "";
             if(data.type === 'sys') {
                 html = `<div class="sys-msg">${data.text}</div>`;
             } else if(data.type === 'aviso') {
-                html = `<div class="aviso-box"><small style="color:#ba68c8">AVISO DE ${data.nick}:</small><br>${data.text}</div>`;
+                html = `<div class="aviso-box"><small style="color:#ba68c8; font-weight:bold">${data.nickname.toUpperCase()} AVISO AL SERVIDOR:</small><br>${data.text}</div>`;
             } else {
-                const mine = data.id === socket.id;
+                const isMine = data.socketId === socket.id;
                 html = `
-                    <div class="msg-container ${mine?'mine':'others'}">
-                        ${!mine ? `<img src="${data.photo}" class="avatar-chat">` : ''}
+                    <div class="msg-row ${isMine?'mine':'others'}">
+                        ${!isMine ? `<img src="${data.photo}" class="avatar-chat">` : ''}
                         <div class="bubble">
-                            <span class="u-name">${mine ? 'Tú' : data.nick}</span>
+                            <span class="u-name">${isMine ? 'Tú' : data.nickname}</span>
                             <span>${data.text}</span>
                         </div>
                     </div>`;
             }
-            b.insertAdjacentHTML('beforeend', html);
-            b.scrollTop = b.scrollHeight;
+            box.insertAdjacentHTML('beforeend', html);
+            box.scrollTop = box.scrollHeight;
         }
 
         document.getElementById('msg-input').onkeypress = (e) => e.key === 'Enter' && send();
