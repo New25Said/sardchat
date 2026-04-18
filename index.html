@@ -11,78 +11,82 @@
 
     <div id="login-screen">
         <div class="box">
-            <h2>Bienvenido</h2>
-            <img id="preview-img" class="clickable-avatar" src="https://via.placeholder.com/110?text=Foto" onclick="document.getElementById('photo-file').click()">
-            <input type="file" id="photo-file" class="hidden" accept="image/*" onchange="preview(this, 'preview-img')">
-            <input type="text" id="nickname" placeholder="Tu Apodo...">
-            <button onclick="join()">ENTRAR AL CHAT</button>
+            <h2 style="color:#ba68c8">Registro</h2>
+            <img id="p-img" class="clickable-avatar" src="https://via.placeholder.com/100?text=+" onclick="document.getElementById('f-input').click()">
+            <input type="file" id="f-input" class="hidden" accept="image/*" onchange="preview(this, 'p-img')">
+            <input type="text" id="p-nick" placeholder="Apodo...">
+            <button onclick="entrar()">ENTRAR</button>
         </div>
     </div>
 
     <div id="settings-modal" class="hidden">
         <div class="box">
-            <h3>Mi Perfil</h3>
-            <img id="edit-preview" class="clickable-avatar" onclick="document.getElementById('edit-photo').click()">
-            <input type="file" id="edit-photo" class="hidden" accept="image/*" onchange="preview(this, 'edit-preview')">
-            <input type="text" id="edit-nickname">
-            <button onclick="saveSettings()">GUARDAR CAMBIOS</button>
-            <button onclick="toggleModal()" style="background:#3b4a54; margin-top:8px">CERRAR</button>
+            <h3>Perfil</h3>
+            <img id="e-img" class="clickable-avatar" onclick="document.getElementById('e-input').click()">
+            <input type="file" id="e-input" class="hidden" accept="image/*" onchange="preview(this, 'e-img')">
+            <input type="text" id="e-nick">
+            <button onclick="update()">GUARDAR</button>
+            <button onclick="toggleModal()" style="margin-top:8px; background:#444">CANCELAR</button>
         </div>
     </div>
 
     <div id="chat-screen" class="hidden">
-        <div class="server-banner"></div>
+        <div class="banner"></div>
         <header>
             <div style="display:flex; align-items:center; gap:10px">
-                <img id="h-avatar" style="width:35px; height:35px; border-radius:50%; object-fit:cover">
-                <span id="h-nick" style="font-weight:bold; color:#ba68c8"></span>
+                <img id="my-p" style="width:35px; height:35px; border-radius:50%; object-fit:cover">
+                <span id="my-n"></span>
             </div>
-            <button onclick="toggleModal()" style="width:auto; padding:5px 15px; font-size:0.8rem">AJUSTES</button>
+            <button onclick="toggleModal()" style="width:auto; padding:5px 15px">PERFIL</button>
         </header>
-        
         <div id="messages"></div>
-
         <div class="input-area">
-            <input type="text" id="msg-input" placeholder="Escribe un mensaje..." autocomplete="off">
-            <button class="send-btn" onclick="send()">➤</button>
+            <input type="text" id="msg-input" placeholder="Mensaje..." autocomplete="off">
+            <button class="btn-send" onclick="send()">➤</button>
         </div>
     </div>
 
     <script>
         const socket = io();
-        let myData = JSON.parse(localStorage.getItem('wine_user')) || null;
-        let allUsers = {};
-        let tempPhoto = "";
+        let user = JSON.parse(localStorage.getItem('wine_user')) || null;
+        let currentPhoto = "";
 
-        function preview(input, target) {
+        function preview(input, id) {
             const reader = new FileReader();
-            reader.onload = (e) => {
-                document.getElementById(target).src = e.target.result;
-                tempPhoto = e.target.result;
+            reader.onload = (e) => { 
+                document.getElementById(id).src = e.target.result;
+                currentPhoto = e.target.result;
             };
             if(input.files[0]) reader.readAsDataURL(input.files[0]);
         }
 
-        function join() {
-            const nick = document.getElementById('nickname').value.trim();
-            if(!nick || (!myData && !tempPhoto)) return alert("Pon nombre y foto, weón");
-            myData = { nickname: nick, photo: tempPhoto || myData.photo };
-            localStorage.setItem('wine_user', JSON.stringify(myData));
-            socket.emit('join', myData);
-            document.getElementById('login-screen').classList.add('hidden');
+        function entrar() {
+            const nick = document.getElementById('p-nick').value;
+            if(!nick || (!user && !currentPhoto)) return alert("Datos faltantes");
+            user = { nickname: nick, photo: currentPhoto || user.photo };
+            localStorage.setItem('wine_user', JSON.stringify(user));
+            document.getElementById('login-screen').style.display = 'none';
             document.getElementById('chat-screen').classList.remove('hidden');
-            updateUI();
-        }
-
-        function updateUI() {
-            document.getElementById('h-nick').innerText = myData.nickname;
-            document.getElementById('h-avatar').src = myData.photo;
+            document.getElementById('my-p').src = user.photo;
+            document.getElementById('my-n').innerText = user.nickname;
         }
 
         function send() {
             const input = document.getElementById('msg-input');
-            if(input.value.trim()) {
-                socket.emit('message', input.value);
+            const val = input.value.trim();
+            if(val) {
+                let type = 'user';
+                let text = val;
+                if(val.startsWith('/sys ')) { type = 'sys'; text = val.replace('/sys ', ''); }
+                if(val.startsWith('/aviso ')) { type = 'aviso'; text = val.replace('/aviso ', ''); }
+                
+                socket.emit('message', {
+                    nick: user.nickname,
+                    photo: user.photo,
+                    text: text,
+                    type: type,
+                    id: socket.id
+                });
                 input.value = '';
                 input.focus();
             }
@@ -92,68 +96,45 @@
             const m = document.getElementById('settings-modal');
             m.classList.toggle('hidden');
             if(!m.classList.contains('hidden')) {
-                document.getElementById('edit-nickname').value = myData.nickname;
-                document.getElementById('edit-preview').src = myData.photo;
-                tempPhoto = myData.photo;
+                document.getElementById('e-nick').value = user.nickname;
+                document.getElementById('e-img').src = user.photo;
+                currentPhoto = user.photo;
             }
         }
 
-        function saveSettings() {
-            const n = document.getElementById('edit-nickname').value.trim();
+        function update() {
+            const n = document.getElementById('e-nick').value;
             if(n) {
-                myData = { nickname: n, photo: tempPhoto };
-                localStorage.setItem('wine_user', JSON.stringify(myData));
-                socket.emit('update profile', myData);
-                updateUI();
+                user = { nickname: n, photo: currentPhoto };
+                localStorage.setItem('wine_user', JSON.stringify(user));
+                document.getElementById('my-p').src = user.photo;
+                document.getElementById('my-n').innerText = user.nickname;
                 toggleModal();
             }
         }
 
-        socket.on('init', (data) => {
-            allUsers = data.users;
-            data.history.forEach(render);
-            if(myData) {
-                document.getElementById('nickname').value = myData.nickname;
-                document.getElementById('preview-img').src = myData.photo;
-                tempPhoto = myData.photo;
-                join();
-            }
+        socket.on('load history', (history) => {
+            history.forEach(render);
+            if(user) entrar();
         });
 
-        socket.on('user list update', (u) => {
-            allUsers = u;
-            // Actualizar mensajes antiguos en pantalla al instante
-            document.querySelectorAll('.msg-container').forEach(container => {
-                const uid = container.getAttribute('data-uid');
-                if(uid && allUsers[uid]) {
-                    const img = container.querySelector('.avatar-chat');
-                    const nick = container.querySelector('.u-name');
-                    if(img) img.src = allUsers[uid].photo;
-                    if(nick && nick.innerText !== 'Tú') nick.innerText = allUsers[uid].nickname;
-                }
-            });
-        });
+        socket.on('new message', render);
 
-        socket.on('message', render);
-
-        function render(d) {
+        function render(data) {
             const b = document.getElementById('messages');
             let html = "";
-            if(d.type === 'system') {
-                html = `<div class="system-msg">${d.text}</div>`;
-            } else if(d.type === 'aviso') {
-                html = `<div class="aviso-msg" data-uid="${d.userId}"><span class="aviso-tag">${d.userNick} AVISO:</span>${d.text}</div>`;
+            if(data.type === 'sys') {
+                html = `<div class="sys-msg">${data.text}</div>`;
+            } else if(data.type === 'aviso') {
+                html = `<div class="aviso-box"><small style="color:#ba68c8">AVISO DE ${data.nick}:</small><br>${data.text}</div>`;
             } else {
-                const mine = d.userId === socket.id;
-                const photo = allUsers[d.userId] ? allUsers[d.userId].photo : d.userPhoto;
-                const nick = allUsers[d.userId] ? allUsers[d.userId].nickname : d.userNick;
-                
+                const mine = data.id === socket.id;
                 html = `
-                    <div class="msg-container ${mine?'mine':'others'}" data-uid="${d.userId}">
-                        ${!mine ? `<img src="${photo}" class="avatar-chat">` : ''}
+                    <div class="msg-container ${mine?'mine':'others'}">
+                        ${!mine ? `<img src="${data.photo}" class="avatar-chat">` : ''}
                         <div class="bubble">
-                            <span class="u-name">${mine ? 'Tú' : nick}</span>
-                            <span>${d.text}</span>
+                            <span class="u-name">${mine ? 'Tú' : data.nick}</span>
+                            <span>${data.text}</span>
                         </div>
                     </div>`;
             }
