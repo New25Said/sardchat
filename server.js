@@ -17,7 +17,7 @@ app.get('/', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-    // Al conectar enviamos el estado actual del servidor
+    // Al conectar enviamos el historial y los usuarios actuales
     socket.emit('init', { history: chatHistory, users: activeUsers });
 
     socket.on('join', (data) => {
@@ -67,4 +67,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('>>> WineChat Arriba en puerto ' + PORT));
+server.listen(PORT, () => console.log('Servidor WineChat escuchando en puerto ' + PORT));
