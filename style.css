@@ -1,57 +1,41 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background-color: #0b0e11; color: #e9edef; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+body { background: #0b0e11; color: #e9edef; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
-.hidden { display: none !important; visibility: hidden; }
+.hidden { display: none !important; }
 
-/* Pantallas Superiores */
+/* Capas de Registro y Ajustes */
 #login-screen, #settings-modal { 
     position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-    background: rgba(11, 14, 17, 0.98); display: flex; justify-content: center; align-items: center; z-index: 2000; 
+    background: #0b0e11; display: flex; justify-content: center; align-items: center; z-index: 2000; 
 }
 
-.box { background: #1f2c33; padding: 30px; border-radius: 20px; border: 2px solid #7b1fa2; width: 90%; max-width: 360px; text-align: center; box-shadow: 0 0 20px rgba(123, 31, 162, 0.3); }
-.box h2, .box h3 { color: #ba68c8; margin-bottom: 15px; }
+.box { background: #1f2c33; padding: 30px; border-radius: 20px; border: 2px solid #7b1fa2; width: 90%; max-width: 360px; text-align: center; }
+.clickable-avatar { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin: 15px auto; border: 3px solid #7b1fa2; display: block; cursor: pointer; }
 
-.clickable-avatar { width: 110px; height: 110px; border-radius: 50%; object-fit: cover; margin: 15px auto; border: 3px solid #7b1fa2; display: block; cursor: pointer; transition: 0.3s; }
-.clickable-avatar:hover { filter: brightness(1.2); transform: scale(1.05); }
-
-input[type="text"] { width: 100%; padding: 12px; margin: 10px 0; background: #2a3942; border: 1px solid #3b4a54; color: white; border-radius: 10px; outline: none; }
-button { background: #7b1fa2; color: white; border: none; padding: 12px; cursor: pointer; border-radius: 10px; font-weight: bold; width: 100%; transition: 0.2s; }
-button:hover { background: #9c27b0; }
-
-/* Banner Superior Personalizado */
-.server-banner {
-    width: 100%;
-    height: 120px;
-    background: url('baner.png') center/cover no-repeat;
-    border-bottom: 2px solid #4a148c;
-    flex-shrink: 0;
-}
+/* Banner de Servidor */
+.banner { width: 100%; height: 100px; background: url('baner.png') center/cover; border-bottom: 2px solid #4a148c; flex-shrink: 0; }
 
 /* Chat Layout */
-#chat-screen { flex: 1; display: flex; flex-direction: column; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-blend-mode: overlay; background-color: #0b0e11; position: relative; }
-
 header { background: #1f2c33; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #4a148c; height: 60px; }
-
-#messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
+#messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-blend-mode: overlay; background-color: #0b0e11; }
 
 /* Burbujas */
-.msg-container { display: flex; width: 100%; margin: 2px 0; align-items: flex-end; }
+.msg-container { display: flex; width: 100%; align-items: flex-end; }
 .mine { justify-content: flex-end; }
 .others { justify-content: flex-start; }
 
-.bubble { max-width: 75%; padding: 8px 12px; border-radius: 15px; font-size: 0.95rem; box-shadow: 0 1px 2px rgba(0,0,0,0.5); position: relative; }
+.bubble { max-width: 75%; padding: 8px 12px; border-radius: 12px; font-size: 0.95rem; box-shadow: 0 1px 2px rgba(0,0,0,0.5); }
 .mine .bubble { background: #4a148c; border-bottom-right-radius: 2px; }
 .others .bubble { background: #1f2c33; border-bottom-left-radius: 2px; }
 
-.system-msg { text-align: center; font-size: 0.75rem; color: #aaa; background: rgba(0,0,0,0.4); padding: 5px 15px; border-radius: 8px; margin: 10px auto; width: fit-content; }
-.aviso-msg { text-align: center; margin: 15px auto; width: 90%; background: rgba(123, 31, 162, 0.2); padding: 15px; border-radius: 12px; border: 1px solid #7b1fa2; backdrop-filter: blur(5px); }
-.aviso-tag { font-size: 0.7rem; color: #ba68c8; font-weight: bold; text-transform: uppercase; display: block; margin-bottom: 5px; }
+.avatar-chat { width: 35px; height: 35px; border-radius: 50%; margin-right: 10px; border: 1px solid #7b1fa2; object-fit: cover; }
+.u-name { font-size: 0.75rem; font-weight: bold; color: #ba68c8; display: block; margin-bottom: 3px; }
 
-.avatar-chat { width: 32px; height: 32px; border-radius: 50%; margin-right: 8px; border: 1px solid #7b1fa2; object-fit: cover; flex-shrink: 0; }
-.u-name { font-size: 0.75rem; font-weight: bold; color: #ba68c8; margin-bottom: 2px; display: block; }
+/* Comandos */
+.sys-msg { text-align: center; font-size: 0.75rem; color: #aaa; background: rgba(0,0,0,0.4); padding: 5px 15px; border-radius: 8px; margin: 5px auto; width: fit-content; }
+.aviso-box { text-align: center; margin: 10px auto; width: 90%; background: rgba(123, 31, 162, 0.2); border: 1px solid #7b1fa2; padding: 10px; border-radius: 10px; }
 
-/* Area de Input */
-.input-area { background: #1f2c33; padding: 12px 15px; display: flex; gap: 10px; align-items: center; z-index: 500; }
-#msg-input { flex: 1; background: #2a3942; border: none; color: white; padding: 12px 20px; border-radius: 25px; outline: none; font-size: 1rem; }
-.send-btn { width: 45px; height: 45px; border-radius: 50%; background: #7b1fa2; color: white; border: none; font-size: 1.2rem; cursor: pointer; flex-shrink: 0; display: flex; justify-content: center; align-items: center; }
+/* Input Area - Posicionamiento Forzado */
+.input-area { background: #1f2c33; padding: 10px 15px; display: flex; gap: 10px; align-items: center; z-index: 100; position: relative; }
+#msg-input { flex: 1; padding: 12px 20px; border-radius: 25px; border: none; background: #2a3942; color: white; outline: none; font-size: 1rem; }
+.btn-send { width: 45px; height: 45px; border-radius: 50%; background: #7b1fa2; border: none; color: white; font-size: 1.2rem; cursor: pointer; }
