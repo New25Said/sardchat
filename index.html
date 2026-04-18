@@ -11,9 +11,9 @@
 
     <div id="login-screen">
         <div class="box">
-            <h2 style="color:#ba68c8">WineChat</h2>
+            <h2 style="color:#ba68c8; margin-bottom: 10px;">WineChat</h2>
             <img id="preview-img" class="preview-circle" src="https://via.placeholder.com/90?text=?">
-            <input type="text" id="nickname" placeholder="Tu nombre...">
+            <input type="text" id="nickname" placeholder="Nickname">
             <input type="file" id="photo-file" accept="image/*" onchange="preview(this, 'preview-img')">
             <button onclick="join()">ENTRAR</button>
         </div>
@@ -21,12 +21,12 @@
 
     <div id="settings-modal" class="hidden">
         <div class="box">
-            <h3 style="color:#ba68c8">Ajustes</h3>
+            <h3 style="color:#ba68c8; margin-bottom: 10px;">Ajustes de Perfil</h3>
             <img id="edit-preview" class="preview-circle">
             <input type="text" id="edit-nickname">
             <input type="file" id="edit-photo" accept="image/*" onchange="preview(this, 'edit-preview')">
             <button onclick="saveSettings()">GUARDAR</button>
-            <button class="secondary" onclick="toggleModal()">CANCELAR</button>
+            <button onclick="toggleModal()" style="background:#3b4a54; margin-top:8px;">CANCELAR</button>
         </div>
     </div>
 
@@ -36,11 +36,13 @@
                 <img id="h-avatar" style="width:35px; height:35px; border-radius:50%; object-fit:cover">
                 <span id="h-nick" style="font-weight:500"></span>
             </div>
-            <button onclick="toggleModal()" style="width:auto; padding:5px 12px; font-size:0.75rem">PERFIL</button>
+            <button onclick="toggleModal()" style="width:auto; padding:6px 15px; font-size:0.75rem">PERFIL</button>
         </header>
+        
         <div id="messages"></div>
+
         <div class="input-area">
-            <input type="text" id="msg-input" placeholder="Mensaje..." autocomplete="off">
+            <input type="text" id="msg-input" placeholder="Escribe un mensaje..." autocomplete="off">
             <button class="send-btn" onclick="send()">➤</button>
         </div>
     </div>
@@ -62,7 +64,7 @@
 
         function join() {
             const nick = document.getElementById('nickname').value.trim();
-            if(!nick || (!myData && !tempPhoto)) return alert("Nick y Foto obligatorios");
+            if(!nick || (!myData && !tempPhoto)) return alert("Nick y Foto requeridos");
             
             myData = { nickname: nick, photo: tempPhoto || myData.photo };
             localStorage.setItem('wine_user', JSON.stringify(myData));
@@ -111,12 +113,14 @@
             if(myData) {
                 document.getElementById('nickname').value = myData.nickname;
                 document.getElementById('preview-img').src = myData.photo;
+                tempPhoto = myData.photo;
                 join();
             }
         });
 
         socket.on('user list update', (u) => {
             allUsers = u;
+            // Actualizar mensajes viejos en pantalla
             document.querySelectorAll('.msg-container').forEach(m => {
                 const id = m.getAttribute('data-uid');
                 if(id && allUsers[id]) {
@@ -148,7 +152,9 @@
             b.scrollTop = b.scrollHeight;
         }
 
-        document.getElementById('msg-input').onkeypress = (e) => e.key === 'Enter' && send();
+        document.getElementById('msg-input').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') send();
+        });
     </script>
 </body>
 </html>
