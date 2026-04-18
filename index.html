@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WineChat Banner Header</title>
+    <title>WineChat Ultra Fix</title>
     <link rel="stylesheet" href="style.css">
     <script src="/socket.io/socket.io.js"></script>
 </head>
@@ -12,7 +12,7 @@
     <div id="scr-login" class="overlay">
         <div class="box">
             <h2 style="color:#ba68c8">WineChat</h2>
-            <img id="l-prev" class="profile-img-preview" src="https://via.placeholder.com/100?text=FOTO" onclick="document.getElementById('f-l').click()">
+            <img id="l-prev" class="profile-img-preview" src="https://via.placeholder.com/100?text=+" onclick="document.getElementById('f-l').click()">
             <input type="file" id="f-l" class="hidden" accept="image/*" onchange="pv(this, 'l-prev')">
             <input type="text" id="n-l" placeholder="¿Nickname?">
             <button onclick="jn()">ENTRAR</button>
@@ -44,7 +44,7 @@
         <div id="chat-box"></div>
 
         <div class="footer-input">
-            <input type="text" id="main-input" placeholder="Escribe un mensaje..." autocomplete="off">
+            <input type="text" id="main-input" placeholder="Mensaje..." autocomplete="off">
             <button class="send-btn" onclick="sm()">➤</button>
         </div>
     </div>
@@ -65,10 +65,14 @@
             if(!n || (!ss && !tP)) return alert("Faltan datos");
             ss = { n: n, p: tP || ss.p };
             localStorage.setItem('w_s', JSON.stringify(ss));
-            document.getElementById('scr-login').style.display = 'none';
+            
+            // Usamos remove() para eliminar físicamente el login si es necesario
+            document.getElementById('scr-login').remove();
             document.getElementById('app-chat').classList.remove('hidden');
             document.getElementById('h-a').src = ss.p;
             document.getElementById('h-n').innerText = ss.n;
+            
+            setTimeout(() => document.getElementById('main-input').focus(), 500);
         }
 
         function sm() {
