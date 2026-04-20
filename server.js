@@ -8,7 +8,6 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 let chatHistory = [];
-let activeUsers = {}; 
 
 app.use(express.static(__dirname));
 
@@ -17,54 +16,49 @@ app.get('/', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-    // Al conectar enviamos el estado actual del servidor
-    socket.emit('init', { history: chatHistory, users: activeUsers });
+    socket.emit('load history', chatHistory);
 
     socket.on('join', (data) => {
-        activeUsers[socket.id] = { 
-            nickname: data.nickname, 
-            photo: data.photo 
-        };
-        
-        const systemMsg = { text: `${data.nickname} se ha unido`, type: 'system' };
-        chatHistory.push(systemMsg);
-        
-        io.emit('user list update', activeUsers);
-        io.emit('message', systemMsg);
+        socket.user = data; 
+        // Notificación de sistema al entrar
+        const welcomeMsg = { text: `${data.nickname} se ha unido al chat`, type: 'sys' };
+        chatHistory.push(welcomeMsg);
+        io.emit('message', welcomeMsg);
     });
 
-    socket.on('update profile', (data) => {
-        if (activeUsers[socket.id]) {
-            const oldName = activeUsers[socket.id].nickname;
-            activeUsers[socket.id] = { nickname: data.nickname, photo: data.photo };
-            
-            io.emit('user list update', activeUsers);
-            io.emit('message', { text: `${oldName} ahora es ${data.nickname}`, type: 'system' });
-        }
-    });
-
-    socket.on('message', (text) => {
-        if (activeUsers[socket.id]) {
-            const msgData = {
-                text: text,
-                userId: socket.id,
+    socket.on('message', (msg) => {
+        if (socket.user) {
+            let messageData = {
+                user: socket.user.nickname,
+                photo: socket.user.photo,
                 type: 'user',
-                time: Date.now()
+                id: socket.id + Date.now()
             };
-            chatHistory.push(msgData);
-            io.emit('message', msgData);
+
+            // Lógica de Comandos
+            if (msg.startsWith('/sys ')) {
+                messageData.text = msg.replace('/sys ', '');
+                messageData.type = 'sys';
+            } else if (msg.startsWith('/aviso ')) {
+                messageData.text = msg.replace('/aviso ', '');
+                messageData.type = 'aviso';
+            } else {
+                messageData.text = msg;
+            }
+            
+            chatHistory.push(messageData);
+            io.emit('message', messageData);
         }
     });
 
     socket.on('disconnect', () => {
-        if (activeUsers[socket.id]) {
-            const name = activeUsers[socket.id].nickname;
-            delete activeUsers[socket.id];
-            io.emit('user list update', activeUsers);
-            io.emit('message', { text: `${name} ha salido del chat`, type: 'system' });
+        if (socket.user) {
+            const byeMsg = { text: `${socket.user.nickname} ha salido del chat`, type: 'sys' };
+            chatHistory.push(byeMsg);
+            io.emit('message', byeMsg);
         }
     });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('>>> WineChat Arriba en puerto ' + PORT));
+server.listen(PORT, () => console.log(`WineChat Pro en puerto ${PORT}`));
