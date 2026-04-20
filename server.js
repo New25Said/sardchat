@@ -7,35 +7,64 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Memoria volátil del servidor (Se borra solo si Render apaga el server)
 let chatHistory = [];
+let activeUsers = {}; 
+
+app.use(express.static(__dirname));
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 io.on('connection', (socket) => {
-    // En cuanto alguien conecta, le enviamos TODO el historial de golpe
-    socket.emit('load history', chatHistory);
+    // Al conectar enviamos el estado actual del servidor
+    socket.emit('init', { history: chatHistory, users: activeUsers });
 
     socket.on('join', (data) => {
-        socket.user = data; 
+        activeUsers[socket.id] = { 
+            nickname: data.nickname, 
+            photo: data.photo 
+        };
+        
+        const systemMsg = { text: `${data.nickname} se ha unido`, type: 'system' };
+        chatHistory.push(systemMsg);
+        
+        io.emit('user list update', activeUsers);
+        io.emit('message', systemMsg);
     });
 
-    socket.on('message', (msg) => {
-        if (socket.user) {
-            const messageData = {
-                text: msg,
-                user: socket.user.nickname,
-                photo: socket.user.photo,
-                id: socket.id + Date.now() // ID único para el mensaje
-            };
+    socket.on('update profile', (data) => {
+        if (activeUsers[socket.id]) {
+            const oldName = activeUsers[socket.id].nickname;
+            activeUsers[socket.id] = { nickname: data.nickname, photo: data.photo };
             
-            chatHistory.push(messageData); // Guardar en la RAM
-            io.emit('message', messageData); // Envío instantáneo a todos
+            io.emit('user list update', activeUsers);
+            io.emit('message', { text: `${oldName} ahora es ${data.nickname}`, type: 'system' });
+        }
+    });
+
+    socket.on('message', (text) => {
+        if (activeUsers[socket.id]) {
+            const msgData = {
+                text: text,
+                userId: socket.id,
+                type: 'user',
+                time: Date.now()
+            };
+            chatHistory.push(msgData);
+            io.emit('message', msgData);
+        }
+    });
+
+    socket.on('disconnect', () => {
+        if (activeUsers[socket.id]) {
+            const name = activeUsers[socket.id].nickname;
+            delete activeUsers[socket.id];
+            io.emit('user list update', activeUsers);
+            io.emit('message', { text: `${name} ha salido del chat`, type: 'system' });
         }
     });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`WineChat vivo en puerto ${PORT}`));
+server.listen(PORT, () => console.log('>>> WineChat Arriba en puerto ' + PORT));
