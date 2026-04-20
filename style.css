@@ -1,43 +1,40 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100vh; background: #0b0e11; color: #e9edef; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
-
-/* Capas Superiores */
-.overlay { position: fixed; inset: 0; background: #0b0e11; display: flex; justify-content: center; align-items: center; z-index: 9999; }
+body { background-color: #0b0e11; color: #e9edef; font-family: 'Segoe UI', Roboto, Helvetica, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 .hidden { display: none !important; }
 
-.box { background: #1f2c33; padding: 30px; border-radius: 20px; border: 2px solid #7b1fa2; width: 90%; max-width: 350px; text-align: center; }
-.p-prev { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin: 15px auto; border: 3px solid #7b1fa2; cursor: pointer; display: block; background: #2a3942; }
-
-/* Layout App */
-#app-chat { display: flex; flex-direction: column; height: 100vh; }
-
-header { 
-    height: 120px; background: #1f2c33 url('baner.png') center/cover no-repeat;
-    border-bottom: 2px solid #7b1fa2; flex-shrink: 0; display: flex; align-items: flex-end;
+/* Pantallas de Bloqueo */
+#login-screen, #settings-modal { 
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+    background: #0b0e11; display: flex; justify-content: center; align-items: center; z-index: 1000; 
 }
-.h-info { width: 100%; padding: 10px 15px; background: linear-gradient(transparent, rgba(0,0,0,0.9)); display: flex; justify-content: space-between; align-items: center; }
+#settings-modal { background: rgba(0,0,0,0.85); z-index: 2000; }
 
-#chat-box { 
-    flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px;
-    background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-    background-blend-mode: overlay; background-color: #0b0e11;
-}
+.box { background: #1f2c33; padding: 30px; border-radius: 15px; border: 1px solid #7b1fa2; width: 90%; max-width: 360px; text-align: center; }
+.preview-circle { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; margin: 10px auto; border: 3px solid #7b1fa2; display: block; background: #2a3942; }
 
-/* Burbujas */
-.msg { display: flex; width: 100%; align-items: flex-end; margin-bottom: 5px; }
+input[type="text"] { width: 100%; padding: 12px; margin: 10px 0; background: #2a3942; border: 1px solid #3b4a54; color: white; border-radius: 8px; outline: none; }
+input[type="file"] { font-size: 0.8rem; margin: 10px 0; color: #aaa; }
+button { background: #7b1fa2; color: white; border: none; padding: 12px; cursor: pointer; border-radius: 8px; font-weight: bold; width: 100%; }
+button.secondary { background: #3b4a54; margin-top: 8px; }
+
+/* Chat Layout */
+header { background: #1f2c33; padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #4a148c; min-height: 60px; z-index: 100; }
+#messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 4px; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-blend-mode: overlay; background-color: #0b0e11; }
+
+/* Mensajes */
+.msg-container { display: flex; width: 100%; margin: 2px 0; align-items: flex-end; }
 .mine { justify-content: flex-end; }
 .others { justify-content: flex-start; }
-.bubble { max-width: 80%; padding: 10px 14px; border-radius: 15px; font-size: 0.95rem; box-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+
+.bubble { max-width: 75%; padding: 8px 12px; border-radius: 12px; font-size: 0.95rem; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.2); }
 .mine .bubble { background: #4a148c; border-bottom-right-radius: 2px; }
 .others .bubble { background: #1f2c33; border-bottom-left-radius: 2px; }
-.c-ava { width: 35px; height: 35px; border-radius: 50%; margin-right: 8px; border: 1px solid #7b1fa2; object-fit: cover; }
-.u-tag { font-size: 0.75rem; font-weight: bold; color: #ba68c8; display: block; margin-bottom: 3px; }
 
-/* Comandos */
-.sys { text-align: center; font-size: 0.7rem; color: #888; margin: 10px 0; }
-.aviso { text-align: center; background: rgba(123, 31, 162, 0.1); border: 1px solid #7b1fa2; padding: 15px; border-radius: 12px; margin: 15px 0; }
+.system-msg { text-align: center; font-size: 0.7rem; color: #8696a0; background: rgba(31, 44, 51, 0.8); padding: 4px 12px; border-radius: 6px; margin: 8px auto; }
+.avatar-chat { width: 28px; height: 28px; border-radius: 50%; margin-right: 8px; margin-bottom: 2px; border: 1px solid #4a148c; }
+.u-name { font-size: 0.72rem; font-weight: bold; color: #ba68c8; display: block; margin-bottom: 2px; }
 
-/* INPUT BLINDADO (FLEXBOX) */
-.footer { background: #1f2c33; padding: 12px; display: flex; gap: 10px; align-items: center; border-top: 1px solid #000; flex-shrink: 0; }
-#m-input { flex: 1; height: 45px; border-radius: 25px; border: none; background: #2a3942; color: white; padding: 0 20px; outline: none; font-size: 1rem; }
-.s-btn { width: 45px; height: 45px; border-radius: 50%; background: #7b1fa2; color: white; border: none; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+/* Barra Inferior */
+.input-area { background: #1f2c33; padding: 12px 15px; display: flex; gap: 10px; align-items: center; z-index: 100; }
+#msg-input { flex: 1; border-radius: 24px; padding: 12px 18px; border: none; background: #2a3942; color: white; font-size: 1rem; outline: none; }
+.send-btn { width: 45px !important; height: 45px; border-radius: 50% !important; padding: 0 !important; font-size: 1.2rem; flex-shrink: 0; }
