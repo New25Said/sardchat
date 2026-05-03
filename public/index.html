@@ -12,16 +12,17 @@ body {
   color: white;
 }
 
-#login, #chat {
-  display: none;
-}
-
 #login {
   display: flex;
   height: 100vh;
   justify-content: center;
   align-items: center;
   flex-direction: column;
+}
+
+#chat {
+  display: none;
+  height: 100vh;
 }
 
 input {
@@ -37,11 +38,6 @@ button {
   color: white;
   border: none;
   cursor: pointer;
-}
-
-#chat {
-  display: flex;
-  height: 100vh;
 }
 
 #users {
@@ -83,13 +79,6 @@ button {
 #inputBox input {
   flex: 1;
 }
-
-.notification {
-  background: red;
-  border-radius: 50%;
-  padding: 3px 7px;
-  margin-left: 5px;
-}
 </style>
 </head>
 
@@ -108,7 +97,7 @@ button {
   <div id="messages">
     <div id="msgList"></div>
     <div id="inputBox">
-      <input id="msgInput">
+      <input id="msgInput" placeholder="Escribe...">
       <button onclick="send()">Enviar</button>
     </div>
   </div>
@@ -124,11 +113,12 @@ let username = localStorage.getItem("username");
 if (username) {
   startChat(username, localStorage.getItem("avatar"));
 } else {
-  document.getElementById("login").style.display = "flex";
+  document.getElementById("chat").style.display = "none";
 }
 
+// LOGIN
 function login() {
-  let user = document.getElementById("username").value;
+  let user = document.getElementById("username").value.trim();
 
   if (!/^[a-zA-Z0-9]+$/.test(user)) {
     alert("Sin espacios ni símbolos");
@@ -150,10 +140,18 @@ function startChat(user, avatar) {
   document.getElementById("chat").style.display = "flex";
 
   socket.emit("login", { username: user, avatar });
+
+  setTimeout(() => {
+    document.getElementById("msgInput").focus();
+  }, 100);
 }
 
+// ENVIAR
 function send() {
-  let text = document.getElementById("msgInput").value;
+  let input = document.getElementById("msgInput");
+  let text = input.value.trim();
+
+  if (!text) return;
 
   socket.emit("sendMessage", {
     from: username,
@@ -161,9 +159,15 @@ function send() {
     text
   });
 
-  document.getElementById("msgInput").value = "";
+  input.value = "";
 }
 
+// ENTER
+document.getElementById("msgInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") send();
+});
+
+// RECIBIR
 socket.on("newMessage", (msg) => {
   addMessage(msg);
 });
@@ -172,6 +176,7 @@ socket.on("systemMessage", (msg) => {
   addMessage({ from: "SYSTEM", text: msg.text });
 });
 
+// USUARIOS
 socket.on("userList", (users) => {
   let container = document.getElementById("users");
   container.innerHTML = "";
@@ -179,7 +184,10 @@ socket.on("userList", (users) => {
   let global = document.createElement("div");
   global.className = "user";
   global.innerText = "🌍 Global";
-  global.onclick = () => currentChat = "global";
+  global.onclick = () => {
+    currentChat = "global";
+    document.getElementById("msgList").innerHTML = "";
+  };
   container.appendChild(global);
 
   users.forEach(u => {
@@ -198,6 +206,7 @@ socket.on("userList", (users) => {
   });
 });
 
+// MOSTRAR MENSAJE
 function addMessage(msg) {
   if (msg.to && msg.to !== currentChat && msg.from !== username) return;
 
@@ -205,7 +214,9 @@ function addMessage(msg) {
   div.className = "msg";
   div.innerText = `${msg.from}: ${msg.text}`;
 
-  document.getElementById("msgList").appendChild(div);
+  let list = document.getElementById("msgList");
+  list.appendChild(div);
+  list.scrollTop = list.scrollHeight;
 }
 </script>
 
