@@ -41,19 +41,38 @@ button {
 }
 
 #users {
-  width: 200px;
+  width: 230px;
   background: #2a000f;
   overflow-y: auto;
 }
 
 .user {
+  display: flex;
+  align-items: center;
   padding: 10px;
   cursor: pointer;
   border-bottom: 1px solid #400014;
+  position: relative;
 }
 
 .user:hover {
   background: #400014;
+}
+
+.avatar {
+  width: 25px;
+  height: 25px;
+  background: #555;
+  margin-right: 8px;
+}
+
+.notification {
+  position: absolute;
+  right: 10px;
+  background: red;
+  border-radius: 50%;
+  padding: 2px 6px;
+  font-size: 12px;
 }
 
 #messages {
@@ -109,11 +128,12 @@ const socket = io();
 
 let currentChat = "global";
 let username = localStorage.getItem("username");
+let allMessages = { global: [], private: {} };
+let notifications = {};
+let userData = {};
 
 if (username) {
   startChat(username, localStorage.getItem("avatar"));
-} else {
-  document.getElementById("chat").style.display = "none";
 }
 
 // LOGIN
@@ -150,7 +170,6 @@ function startChat(user, avatar) {
 function send() {
   let input = document.getElementById("msgInput");
   let text = input.value.trim();
-
   if (!text) return;
 
   socket.emit("sendMessage", {
@@ -167,55 +186,102 @@ document.getElementById("msgInput").addEventListener("keydown", (e) => {
   if (e.key === "Enter") send();
 });
 
-// RECIBIR
-socket.on("newMessage", (msg) => {
-  addMessage(msg);
+// CARGA INICIAL
+socket.on("loadMessages", (messages) => {
+  allMessages = messages;
+  renderMessages();
 });
 
-socket.on("systemMessage", (msg) => {
-  addMessage({ from: "SYSTEM", text: msg.text });
+// NUEVO MENSAJE
+socket.on("newMessage", (msg) => {
+  if (msg.to === "global") {
+    allMessages.global.push(msg);
+  } else {
+    const key = [msg.from, msg.to].sort().join("-");
+    if (!allMessages.private[key]) allMessages.private[key] = [];
+    allMessages.private[key].push(msg);
+  }
+
+  if (msg.from !== username && msg.to !== currentChat) {
+    notifications[msg.from] = (notifications[msg.from] || 0) + 1;
+  }
+
+  renderUsers();
+  renderMessages();
 });
 
 // USUARIOS
-socket.on("userList", (users) => {
+socket.on("userList", (data) => {
+  userData = data.allUsers || {};
+  renderUsers(data.users);
+});
+
+function renderUsers(users = []) {
   let container = document.getElementById("users");
   container.innerHTML = "";
 
-  let global = document.createElement("div");
-  global.className = "user";
-  global.innerText = "🌍 Global";
-  global.onclick = () => {
-    currentChat = "global";
-    document.getElementById("msgList").innerHTML = "";
-  };
+  let global = createUser("global", "🌍 Global", "");
   container.appendChild(global);
 
   users.forEach(u => {
     if (u === username) return;
-
-    let div = document.createElement("div");
-    div.className = "user";
-    div.innerText = u;
-
-    div.onclick = () => {
-      currentChat = u;
-      document.getElementById("msgList").innerHTML = "";
-    };
-
-    container.appendChild(div);
+    let avatar = userData[u]?.avatar || "";
+    let el = createUser(u, u, avatar);
+    container.appendChild(el);
   });
-});
+}
 
-// MOSTRAR MENSAJE
-function addMessage(msg) {
-  if (msg.to && msg.to !== currentChat && msg.from !== username) return;
-
+function createUser(id, name, avatarUrl) {
   let div = document.createElement("div");
-  div.className = "msg";
-  div.innerText = `${msg.from}: ${msg.text}`;
+  div.className = "user";
 
+  div.onclick = () => {
+    currentChat = id;
+    notifications[id] = 0;
+    renderUsers();
+    renderMessages();
+  };
+
+  let avatar = document.createElement("img");
+  avatar.className = "avatar";
+  avatar.src = avatarUrl || "";
+  div.appendChild(avatar);
+
+  let text = document.createElement("span");
+  text.innerText = name;
+  div.appendChild(text);
+
+  if (notifications[id]) {
+    let notif = document.createElement("div");
+    notif.className = "notification";
+    notif.innerText = notifications[id];
+    div.appendChild(notif);
+  }
+
+  return div;
+}
+
+// MENSAJES
+function renderMessages() {
   let list = document.getElementById("msgList");
-  list.appendChild(div);
+  list.innerHTML = "";
+
+  let msgs = [];
+
+  if (currentChat === "global") {
+    msgs = allMessages.global;
+  } else {
+    const key = [username, currentChat].sort().join("-");
+    msgs = allMessages.private[key] || [];
+  }
+
+  msgs.forEach(m => {
+    let div = document.createElement("div");
+    div.className = "msg";
+    div.innerText = `${m.from}: ${m.text}`;
+    list.appendChild(div);
+  });
+
   list.scrollTop = list.scrollHeight;
 }
 </script>
