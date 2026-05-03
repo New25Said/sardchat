@@ -22,6 +22,7 @@ async function saveDB(data) {
 let onlineUsers = {};
 
 io.on("connection", (socket) => {
+
   socket.on("login", async ({ username, avatar }) => {
     const db = await loadDB();
 
@@ -34,7 +35,10 @@ io.on("connection", (socket) => {
 
     await saveDB(db);
 
-    io.emit("userList", Object.keys(onlineUsers));
+    io.emit("userList", {
+      users: Object.keys(onlineUsers),
+      allUsers: db.users
+    });
 
     io.emit("systemMessage", {
       text: `${username} se ha conectado`
@@ -71,7 +75,9 @@ io.on("connection", (socket) => {
 
     delete onlineUsers[username];
 
-    io.emit("userList", Object.keys(onlineUsers));
+    io.emit("userList", {
+      users: Object.keys(onlineUsers)
+    });
 
     io.emit("systemMessage", {
       text: `${username} se ha desconectado`
