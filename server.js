@@ -1,64 +1,79 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const path = require('path');
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const fs = require("fs-extra");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-let chatHistory = [];
+const DB_FILE = "./data.json";
 
-app.use(express.static(__dirname));
+app.use(express.static("public"));
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+async function loadDB() {
+  return await fs.readJSON(DB_FILE);
+}
+
+async function saveDB(data) {
+  await fs.writeJSON(DB_FILE, data, { spaces: 2 });
+}
+
+let onlineUsers = {};
+
+io.on("connection", (socket) => {
+  console.log("Nuevo cliente conectado");
+
+  socket.on("login", async ({ username, avatar }) => {
+    const db = await loadDB();
+
+    if (!db.users[username]) {
+      db.users[username] = { avatar };
+    }
+
+    onlineUsers[username] = socket.id;
+    socket.username = username;
+
+    await saveDB(db);
+
+    io.emit("userList", Object.keys(onlineUsers));
+
+    io.emit("systemMessage", {
+      text: `${username} se ha conectado`
+    });
+
+    socket.emit("loadMessages", db.messages);
+  });
+
+  socket.on("sendMessage", async (msg) => {
+    const db = await loadDB();
+
+    if (msg.to === "global") {
+      db.messages.global.push(msg);
+      io.emit("newMessage", msg);
+    } else {
+      const key = [msg.from, msg.to].sort().join("-");
+      if (!db.messages.private[key]) db.messages.private[key] = [];
+      db.messages.private[key].push(msg);
+
+      io.to(onlineUsers[msg.to]).emit("newMessage", msg);
+      socket.emit("newMessage", msg);
+    }
+
+    await saveDB(db);
+  });
+
+  socket.on("disconnect", async () => {
+    const username = socket.username;
+    if (!username) return;
+
+    delete onlineUsers[username];
+
+    io.emit("userList", Object.keys(onlineUsers));
+    io.emit("systemMessage", {
+      text: `${username} se ha desconectado`
+    });
+  });
 });
 
-io.on('connection', (socket) => {
-    socket.emit('load history', chatHistory);
-
-    socket.on('join', (data) => {
-        socket.user = data; 
-        // Notificación de sistema al entrar
-        const welcomeMsg = { text: `${data.nickname} se ha unido al chat`, type: 'sys' };
-        chatHistory.push(welcomeMsg);
-        io.emit('message', welcomeMsg);
-    });
-
-    socket.on('message', (msg) => {
-        if (socket.user) {
-            let messageData = {
-                user: socket.user.nickname,
-                photo: socket.user.photo,
-                type: 'user',
-                id: socket.id + Date.now()
-            };
-
-            // Lógica de Comandos
-            if (msg.startsWith('/sys ')) {
-                messageData.text = msg.replace('/sys ', '');
-                messageData.type = 'sys';
-            } else if (msg.startsWith('/aviso ')) {
-                messageData.text = msg.replace('/aviso ', '');
-                messageData.type = 'aviso';
-            } else {
-                messageData.text = msg;
-            }
-            
-            chatHistory.push(messageData);
-            io.emit('message', messageData);
-        }
-    });
-
-    socket.on('disconnect', () => {
-        if (socket.user) {
-            const byeMsg = { text: `${socket.user.nickname} ha salido del chat`, type: 'sys' };
-            chatHistory.push(byeMsg);
-            io.emit('message', byeMsg);
-        }
-    });
-});
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`WineChat Pro en puerto ${PORT}`));
+server.listen(3000, () => console.log("Server ON"));
