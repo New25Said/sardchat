@@ -22,8 +22,6 @@ async function saveDB(data) {
 let onlineUsers = {};
 
 io.on("connection", (socket) => {
-  console.log("Nuevo cliente conectado");
-
   socket.on("login", async ({ username, avatar }) => {
     const db = await loadDB();
 
@@ -48,6 +46,8 @@ io.on("connection", (socket) => {
   socket.on("sendMessage", async (msg) => {
     const db = await loadDB();
 
+    if (!msg.text || msg.text.trim() === "") return;
+
     if (msg.to === "global") {
       db.messages.global.push(msg);
       io.emit("newMessage", msg);
@@ -56,7 +56,9 @@ io.on("connection", (socket) => {
       if (!db.messages.private[key]) db.messages.private[key] = [];
       db.messages.private[key].push(msg);
 
-      io.to(onlineUsers[msg.to]).emit("newMessage", msg);
+      if (onlineUsers[msg.to]) {
+        io.to(onlineUsers[msg.to]).emit("newMessage", msg);
+      }
       socket.emit("newMessage", msg);
     }
 
@@ -70,6 +72,7 @@ io.on("connection", (socket) => {
     delete onlineUsers[username];
 
     io.emit("userList", Object.keys(onlineUsers));
+
     io.emit("systemMessage", {
       text: `${username} se ha desconectado`
     });
