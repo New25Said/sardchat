@@ -1,13 +1,13 @@
 {
-  "name": "winechat-pro-edition",
-  "version": "2.0.0",
-  "description": "Clon de WhatsApp - Estructura Reforzada",
+  "name": "vinochat",
+  "version": "1.0.0",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "socket.io": "^4.7.2"
+    "socket.io": "^4.7.2",
+    "fs-extra": "^11.2.0"
   }
 }
